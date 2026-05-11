@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { width:300px; background:#0D0F12; color:#EAEEF3; font-family:'Segoe UI',Arial,sans-serif; padding:20px; }
+        .header { display:flex; align-items:center; gap:10px; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid #2A2D35; }
+        .header .logo { font-size:22px; }
+        .header .title { font-size:15px; font-weight:600; }
+        .header .version { font-size:10px; color:#5A6070; margin-left:auto; }
+        .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:#141619; border-radius:10px; margin-bottom:10px; border:1px solid #2A2D35; }
+        .toggle-label { font-size:13px; font-weight:500; }
+        .toggle-sub { font-size:11px; color:#8B92A5; margin-top:3px; }
+        .switch { position:relative; width:44px; height:24px; flex-shrink:0; }
+        .switch input { opacity:0; width:0; height:0; }
+        .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background:#2A2D35; border-radius:24px; transition:.3s; }
+        .slider:before { content:""; position:absolute; height:18px; width:18px; left:3px; bottom:3px; background:#5A6070; border-radius:50%; transition:.3s; }
+        input:checked + .slider { background:#00D4AA; }
+        input:checked + .slider:before { transform:translateX(20px); background:#0D0F12; }
+        .status { text-align:center; padding:12px; background:#141619; border-radius:10px; margin-bottom:10px; border:1px solid #2A2D35; }
+        .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+        .status-dot.active { background:#00D4AA; box-shadow:0 0 8px #00D4AA; }
+        .status-dot.inactive { background:#FF5252; }
+        .status-dot.warning { background:#FFB74D; box-shadow:0 0 8px #FFB74D; }
+        .status-text { font-size:12px; color:#8B92A5; }
+        .app-status { padding:10px 14px; background:#141619; border-radius:10px; font-size:11px; border:1px solid #2A2D35; text-align:center; }
+        .footer { text-align:center; font-size:10px; color:#5A6070; margin-top:8px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <span class="logo">⚡</span>
+        <span class="title">Cortex Speed</span>
+        <span class="version">v4.0</span>
+    </div>
+
+    <div class="toggle-row">
+        <div>
+            <div class="toggle-label">Intercept Downloads</div>
+            <div class="toggle-sub">Catch browser downloads automatically</div>
+        </div>
+        <label class="switch">
+            <input type="checkbox" id="toggleIntercept" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="status" id="statusBox">
+        <span class="status-dot active" id="statusDot"></span>
+        <span class="status-text" id="statusText">Checking...</span>
+    </div>
+
+    <div class="app-status" id="appStatus">Checking app status...</div>
+
+    <div class="footer">Right-click any link → "⚡ Download with Cortex Speed"</div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

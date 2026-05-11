@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Cortex Speed Interceptor",
+  "version": "4.0",
+  "description": "Intercepts downloads and routes them to the Cortex Speed native engine.",
+  "permissions": [
+    "downloads",
+    "storage",
+    "alarms",
+    "contextMenus",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://localhost:19256/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}

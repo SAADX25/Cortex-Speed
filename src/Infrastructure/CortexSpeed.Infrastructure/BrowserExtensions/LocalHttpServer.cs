@@ -1,0 +1,170 @@
+using CortexSpeed.Application.Commands;
+using MediatR;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using System.Net;
+using System.Text;
+using System.Text.Json;
+using System.Web;
+
+namespace CortexSpeed.Infrastructure.BrowserExtensions;
+
+/// <summary>
+/// Lightweight HTTP server on localhost:19256
+/// Receives download requests from the Chrome extension.
+/// GET  /ping           → health check (extension uses this to check app is running)
+/// POST /download       → JSON body: { url, filename }
+/// GET  /download?url=  → quick URL download
+/// </summary>
+public class LocalHttpServer : BackgroundService
+{
+    private readonly ISender _mediator;
+    private readonly ILogger<LocalHttpServer> _logger;
+
+    public const int Port = 19256;
+    public const string DefaultDownloadFolder = "";
+
+    public LocalHttpServer(ISender mediator, ILogger<LocalHttpServer> logger)
+    {
+        _mediator = mediator;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var listener = new HttpListener();
+        listener.Prefixes.Add($"http://localhost:{Port}/");
+
+        try
+        {
+            listener.Start();
+            _logger.LogInformation("[CortexSpeed] HTTP server listening on http://localhost:{Port}/", Port);
+
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                HttpListenerContext ctx;
+                try
+                {
+                    ctx = await listener.GetContextAsync().WaitAsync(stoppingToken);
+                }
+                catch (OperationCanceledException) { break; }
+                catch { continue; }
+
+                // Handle each request in background (don't block the listener loop)
+                _ = Task.Run(() => HandleRequest(ctx), stoppingToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[CortexSpeed] HTTP server failed to start");
+        }
+        finally
+        {
+            try { listener.Stop(); } catch { }
+        }
+    }
+
+    private async Task HandleRequest(HttpListenerContext ctx)
+    {
+        var req  = ctx.Request;
+        var resp = ctx.Response;
+
+        // CORS — allow Chrome extension to call us
+        resp.Headers.Add("Access-Control-Allow-Origin", "*");
+        resp.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        resp.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
+        resp.ContentType = "application/json";
+
+        try
+        {
+            // Handle OPTIONS preflight
+            if (req.HttpMethod == "OPTIONS")
+            {
+                resp.StatusCode = 204;
+                resp.Close();
+                return;
+            }
+
+            string path = req.Url?.AbsolutePath ?? "/";
+
+            // ── GET /ping ──────────────────────────────────────
+            if (path == "/ping")
+            {
+                await WriteJson(resp, 200, new { status = "ok", app = "CortexSpeed", version = "2.0" });
+                return;
+            }
+
+            // ── POST /download  or  GET /download?url=... ──────
+            if (path == "/download")
+            {
+                string? url = null;
+                string? filename = null;
+
+                if (req.HttpMethod == "POST")
+                {
+                    using var reader = new System.IO.StreamReader(req.InputStream, Encoding.UTF8);
+                    var body = await reader.ReadToEndAsync();
+                    var data = JsonSerializer.Deserialize<DownloadRequest>(body,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    url      = data?.Url;
+                    filename = data?.Filename;
+                }
+                else // GET
+                {
+                    url      = HttpUtility.UrlDecode(req.QueryString["url"] ?? "");
+                    filename = HttpUtility.UrlDecode(req.QueryString["filename"] ?? "");
+                }
+
+                if (string.IsNullOrWhiteSpace(url))
+                {
+                    await WriteJson(resp, 400, new { status = "error", message = "url is required" });
+                    return;
+                }
+
+                // Resolve filename
+                if (string.IsNullOrWhiteSpace(filename))
+                {
+                    try { filename = System.IO.Path.GetFileName(new Uri(url).LocalPath); } catch { }
+                    if (string.IsNullOrWhiteSpace(filename)) filename = $"download_{DateTime.Now:yyyyMMdd_HHmmss}.bin";
+                }
+
+                // Default folder
+                var destFolder = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "Downloads", "CortexSpeed");
+                System.IO.Directory.CreateDirectory(destFolder);
+
+                _logger.LogInformation("[CortexSpeed] Download request: {Url} → {File}", url, filename);
+
+                var jobId = await _mediator.Send(new StartDownloadCommand(url, destFolder, filename));
+
+                await WriteJson(resp, 200, new { status = "ok", jobId = jobId.ToString(), filename });
+                return;
+            }
+
+            // Unknown route
+            await WriteJson(resp, 404, new { status = "error", message = "not found" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[CortexSpeed] Request error");
+            try { await WriteJson(resp, 500, new { status = "error", message = ex.Message }); } catch { }
+        }
+    }
+
+    private static async Task WriteJson(HttpListenerResponse resp, int statusCode, object data)
+    {
+        resp.StatusCode = statusCode;
+        var json = JsonSerializer.Serialize(data);
+        var bytes = Encoding.UTF8.GetBytes(json);
+        resp.ContentLength64 = bytes.Length;
+        await resp.OutputStream.WriteAsync(bytes);
+        resp.Close();
+    }
+
+    private class DownloadRequest
+    {
+        public string? Url { get; set; }
+        public string? Filename { get; set; }
+    }
+}

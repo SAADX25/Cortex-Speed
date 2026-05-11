@@ -1,0 +1,9 @@
+{
+  "name": "com.cortexspeed.host",
+  "description": "Cortex Speed Native Messaging Host Bridge",
+  "path": "G:\\Cortex Speed\\src\\Infrastructure\\CortexSpeed.Bridge\\bin\\Debug\\net10.0-windows\\CortexSpeed.Bridge.exe",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://kkbfhppnddddneefooehhocfkkbgkjgm/"
+  ]
+}

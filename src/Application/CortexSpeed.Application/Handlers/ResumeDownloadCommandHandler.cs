@@ -1,0 +1,25 @@
+using CortexSpeed.Application.Commands;
+using CortexSpeed.Domain.Interfaces;
+using MediatR;
+
+namespace CortexSpeed.Application.Handlers;
+
+public class ResumeDownloadCommandHandler : IRequestHandler<ResumeDownloadCommand, bool>
+{
+    private readonly IDownloadEngine _downloadEngine;
+
+    public ResumeDownloadCommandHandler(IDownloadEngine downloadEngine)
+    {
+        _downloadEngine = downloadEngine;
+    }
+
+    public async Task<bool> Handle(ResumeDownloadCommand request, CancellationToken cancellationToken)
+    {
+        if (StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(request.JobId, out var job))
+        {
+            await _downloadEngine.ResumeDownloadAsync(request.JobId);
+            return true;
+        }
+        return false;
+    }
+}
