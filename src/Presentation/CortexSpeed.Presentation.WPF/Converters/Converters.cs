@@ -245,3 +245,60 @@ public class CountToVisibilityConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotImplementedException();
 }
+
+/// <summary>
+/// Returns Visible only when Status is Downloading or Queued (for Pause button).
+/// </summary>
+public class IsDownloadingConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is DownloadState state)
+        {
+            return (state == DownloadState.Downloading || state == DownloadState.Queued)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+        return Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+/// <summary>
+/// Returns Visible only when Status is Paused or Error (for Resume button).
+/// </summary>
+public class IsPausedConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is DownloadState state)
+        {
+            return (state == DownloadState.Paused || state == DownloadState.Error)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+        return Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+/// <summary>
+/// Returns Visible only when Status is Completed (for Open File/Folder buttons).
+/// </summary>
+public class IsCompletedConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is DownloadState state)
+        {
+            return state == DownloadState.Completed
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+        return Visibility.Collapsed;
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}

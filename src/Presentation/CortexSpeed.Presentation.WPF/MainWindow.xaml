@@ -27,6 +27,9 @@
         <conv:NavItemVisibilityConverter    x:Key="NavVis"/>
         <conv:NavSeparatorVisibilityConverter x:Key="NavSep"/>
         <conv:CountToVisibilityConverter    x:Key="CountVis"/>
+        <conv:IsDownloadingConverter        x:Key="IsDownloading"/>
+        <conv:IsPausedConverter             x:Key="IsPaused"/>
+        <conv:IsCompletedConverter          x:Key="IsCompleted"/>
     </Window.Resources>
 
     <Border CornerRadius="12" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1"
@@ -87,13 +90,6 @@
 
                         <!-- Bottom controls -->
                         <StackPanel DockPanel.Dock="Bottom" Margin="10,6,10,14">
-                            <Border Background="{StaticResource SurfaceHighlightBrush}" CornerRadius="8" Padding="3,2" Margin="0,0,0,6">
-                                <StackPanel>
-                                    <Button Content="⏸  Pause All"   Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Stretch" Margin="0,1" Command="{Binding PauseAllCommand}"/>
-                                    <Button Content="▶  Resume All"  Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Stretch" Margin="0,1" Command="{Binding ResumeAllCommand}"/>
-                                    <Button Content="🗑  Clear Done"  Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Stretch" Margin="0,1" Command="{Binding ClearCompletedCommand}"/>
-                                </StackPanel>
-                            </Border>
                             <Button Content="⚙  Settings" Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Stretch" Command="{Binding OpenSettingsCommand}"/>
                         </StackPanel>
 
@@ -178,29 +174,11 @@
                                     <Border x:Name="Card" CornerRadius="11" Margin="2,4" Padding="14,12"
                                             Background="{StaticResource SurfaceBrush}"
                                             BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
-                                        <Border.ContextMenu>
-                                            <ContextMenu Background="{StaticResource SurfaceHoverBrush}"
-                                                         BorderBrush="{StaticResource BorderMediumBrush}"
-                                                         Foreground="{StaticResource TextPrimaryBrush}">
-                                                <MenuItem Header="⏸  Pause"   Command="{Binding DataContext.PauseDownloadCommand,  RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                                <MenuItem Header="▶  Resume"  Command="{Binding DataContext.ResumeDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                                <MenuItem Header="🚫  Cancel"  Command="{Binding DataContext.CancelDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                                <Separator/>
-                                                <MenuItem Header="📂  Open Folder" Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                                <MenuItem Header="📄  Open File"   Command="{Binding DataContext.OpenFileCommand,   RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                                <MenuItem Header="🔗  Copy URL"    Command="{Binding DataContext.CopyUrlCommand,    RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                                <Separator/>
-                                                <MenuItem Header="🔄  Retry"       Command="{Binding DataContext.RetryDownloadCommand,    RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                                <MenuItem Header="🗑  Remove"      Command="{Binding DataContext.RemoveDownloadCommand,   RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                                <MenuItem Header="🗑  Remove + Delete File" Foreground="#FF4D6A"
-                                                          Command="{Binding DataContext.RemoveWithFileCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}"/>
-                                            </ContextMenu>
-                                        </Border.ContextMenu>
 
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="6"/>
+                                                <RowDefinition Height="Auto"/>
                                                 <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
 
@@ -246,20 +224,30 @@
                                                         </StackPanel>
                                                     </Border>
 
-                                                    <!-- Quick: Pause -->
+                                                    <!-- Quick: Pause (Visible when Downloading or Queued) -->
                                                     <Button Style="{StaticResource IconButtonStyle}" ToolTip="Pause"
+                                                            Visibility="{Binding Status, Converter={StaticResource IsDownloading}}"
                                                             Command="{Binding DataContext.PauseDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}">
                                                         <TextBlock Text="⏸" FontSize="13"/>
                                                     </Button>
-                                                    <!-- Quick: Resume -->
+                                                    <!-- Quick: Resume (Visible when Paused or Error) -->
                                                     <Button Style="{StaticResource IconButtonStyle}" ToolTip="Resume"
+                                                            Visibility="{Binding Status, Converter={StaticResource IsPaused}}"
                                                             Command="{Binding DataContext.ResumeDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}">
                                                         <TextBlock Text="▶" FontSize="11"/>
                                                     </Button>
-                                                    <!-- Quick: Open Folder -->
+                                                    <!-- Quick: Open File (Visible when Completed) -->
+                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open File"
+                                                            Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
+                                                            Command="{Binding DataContext.OpenFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock Text="📄" FontSize="13"/>
+                                                    </Button>
+                                                    <!-- Quick: Open Folder (Visible when Completed) -->
                                                     <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open Folder"
+                                                            Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
                                                             Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}">
                                                         <TextBlock Text="📂" FontSize="13"/>
@@ -276,7 +264,7 @@
                                             <!-- Progress bar -->
                                             <ProgressBar Grid.Row="1" Value="{Binding ProgressPercentage}"
                                                          Style="{StaticResource ModernProgressBarStyle}"
-                                                         Maximum="100" Margin="0,8,0,0"/>
+                                                         Maximum="100" Margin="0,10,0,10"/>
 
                                             <!-- Row 3: size / speed / ETA / progress % -->
                                             <Grid Grid.Row="2">
