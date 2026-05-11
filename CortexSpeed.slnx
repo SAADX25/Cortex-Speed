@@ -8,7 +8,6 @@
   </Folder>
   <Folder Name="/src/Infrastructure/">
     <Project Path="src/Infrastructure/CortexSpeed.Infrastructure/CortexSpeed.Infrastructure.csproj" />
-    <Project Path="src/Infrastructure/CortexSpeed.Bridge/CortexSpeed.Bridge.csproj" />
   </Folder>
   <Folder Name="/src/Presentation/">
     <Project Path="src/Presentation/CortexSpeed.Presentation.WPF/CortexSpeed.Presentation.WPF.csproj" />

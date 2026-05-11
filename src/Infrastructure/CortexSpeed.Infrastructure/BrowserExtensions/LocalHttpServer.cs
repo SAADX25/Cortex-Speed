@@ -1,5 +1,3 @@
-using CortexSpeed.Application.Commands;
-using MediatR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Net;
@@ -18,15 +16,19 @@ namespace CortexSpeed.Infrastructure.BrowserExtensions;
 /// </summary>
 public class LocalHttpServer : BackgroundService
 {
-    private readonly ISender _mediator;
     private readonly ILogger<LocalHttpServer> _logger;
 
     public const int Port = 19256;
-    public const string DefaultDownloadFolder = "";
 
-    public LocalHttpServer(ISender mediator, ILogger<LocalHttpServer> logger)
+    /// <summary>
+    /// Set this from the WPF layer to open the "Add Download" dialog
+    /// instead of silently starting a download.
+    /// Signature: (url, suggestedFilename)
+    /// </summary>
+    public static Action<string, string>? ShowDownloadDialog { get; set; }
+
+    public LocalHttpServer(ILogger<LocalHttpServer> logger)
     {
-        _mediator = mediator;
         _logger = logger;
     }
 
@@ -121,24 +123,28 @@ public class LocalHttpServer : BackgroundService
                     return;
                 }
 
-                // Resolve filename
+                // Resolve suggested filename from URL (may be overridden by user in dialog)
                 if (string.IsNullOrWhiteSpace(filename))
                 {
                     try { filename = System.IO.Path.GetFileName(new Uri(url).LocalPath); } catch { }
                     if (string.IsNullOrWhiteSpace(filename)) filename = $"download_{DateTime.Now:yyyyMMdd_HHmmss}.bin";
                 }
 
-                // Default folder
-                var destFolder = System.IO.Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    "Downloads", "CortexSpeed");
-                System.IO.Directory.CreateDirectory(destFolder);
+                _logger.LogInformation("[CortexSpeed] Browser download intercepted: {Url} → showing dialog", url);
 
-                _logger.LogInformation("[CortexSpeed] Download request: {Url} → {File}", url, filename);
-
-                var jobId = await _mediator.Send(new StartDownloadCommand(url, destFolder, filename));
-
-                await WriteJson(resp, 200, new { status = "ok", jobId = jobId.ToString(), filename });
+                // ── Open the UI dialog instead of auto-starting ──
+                if (ShowDownloadDialog != null)
+                {
+                    var capturedUrl = url;
+                    var capturedFile = filename;
+                    ShowDownloadDialog.Invoke(capturedUrl, capturedFile);
+                    await WriteJson(resp, 200, new { status = "ok", message = "dialog_opened", filename });
+                }
+                else
+                {
+                    // Fallback: dialog not wired yet
+                    await WriteJson(resp, 503, new { status = "error", message = "app_not_ready" });
+                }
                 return;
             }
 

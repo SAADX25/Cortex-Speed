@@ -169,10 +169,84 @@ public class DownloadEngine : IDownloadEngine
         {
             if (job.State == DownloadState.Paused || job.State == DownloadState.Error)
             {
-                // Restart the download from where we left off
-                job.State = DownloadState.Queued;
-                job.Segments.Clear(); // Clear old segments, engine will re-create them
-                _ = Task.Run(() => StartDownloadAsync(job, CancellationToken.None));
+                // Create a new CancellationTokenSource for the resumed download
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
+                _jobCancellationTokens[job.Id] = cts;
+                
+                job.State = DownloadState.Downloading;
+
+                // Find the protocol handler
+                var handler = _protocolHandlers.FirstOrDefault(h => job.Url.StartsWith(h.ProtocolScheme, StringComparison.OrdinalIgnoreCase));
+                if (handler == null)
+                {
+                    job.State = DownloadState.Error;
+                    job.ErrorMessage = $"No protocol handler found for URL: {job.Url}";
+                    return;
+                }
+
+                // Only create new download tasks for segments that are paused or in error state
+                // Segments that were already completed are left as-is
+                var downloadTasks = new List<Task>();
+                
+                foreach (var segment in job.Segments.Where(s => s.State == DownloadState.Paused || s.State == DownloadState.Error))
+                {
+                    // Open a separate stream handle for each segment to allow concurrent writes
+                    var stream = _fileSystemProvider.OpenFileForWrite(job.DestinationFilePath);
+                    
+                    var task = Task.Run(async () => 
+                    {
+                        segment.State = DownloadState.Downloading;
+                        try
+                        {
+                            // Resume from the segment's CurrentOffset (no previously downloaded data is lost)
+                            await _segmentDownloader.DownloadSegmentAsync(job.Url, segment, handler, stream, cts.Token);
+                            if (!cts.Token.IsCancellationRequested)
+                            {
+                                segment.State = DownloadState.Completed;
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Paused or canceled - state is set by the caller
+                        }
+                        catch (Exception ex)
+                        {
+                            segment.State = DownloadState.Error;
+                            job.ErrorMessage = ex.Message;
+                        }
+                        finally
+                        {
+                            await stream.DisposeAsync();
+                        }
+                    }, cts.Token);
+                    
+                    downloadTasks.Add(task);
+                }
+
+                // Wait for all resumed segments to finish
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.WhenAll(downloadTasks);
+                    }
+                    catch (OperationCanceledException) { /* Expected on pause/cancel */ }
+                    
+                    if (job.State == DownloadState.Downloading)
+                    {
+                        if (job.Segments.All(s => s.IsCompleted))
+                        {
+                            job.State = DownloadState.Completed;
+                            job.CompletedAt = DateTime.UtcNow;
+                        }
+                        else if (job.Segments.Any(s => s.State == DownloadState.Error))
+                        {
+                            job.State = DownloadState.Error;
+                        }
+                    }
+
+                    _jobCancellationTokens.TryRemove(job.Id, out _);
+                });
             }
         }
     }

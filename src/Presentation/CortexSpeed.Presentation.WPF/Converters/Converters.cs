@@ -156,22 +156,92 @@ public class ProgressToWidthConverter : IMultiValueConverter
 }
 
 /// <summary>
-/// Returns true (Visibility.Visible) when DownloadState equals the parameter.
+/// Converts a DownloadState to a SolidColorBrush for status dot coloring.
 /// </summary>
-public class StateEqualsToVisibilityConverter : IValueConverter
+public class DownloadStateToBrushConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (value is DownloadState state && parameter is string stateStr)
+        var hex = value is DownloadState state ? state switch
         {
-            if (Enum.TryParse<DownloadState>(stateStr, out var target))
-            {
-                return state == target ? Visibility.Visible : Visibility.Collapsed;
-            }
-        }
-        return Visibility.Collapsed;
+            DownloadState.Downloading => "#00E5C4",
+            DownloadState.Completed   => "#00D68F",
+            DownloadState.Paused      => "#FFA940",
+            DownloadState.Error       => "#FF4D6A",
+            DownloadState.Canceled    => "#FF4D6A",
+            DownloadState.Queued      => "#4DB8FF",
+            DownloadState.Scheduled   => "#AA6EE8",
+            _                         => "#5A6070"
+        } : "#5A6070";
+        return new System.Windows.Media.SolidColorBrush(
+            (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex));
     }
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
 
+/// <summary>
+/// Maps sidebar nav string to its emoji icon.
+/// </summary>
+public class NavItemIconConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return (value as string) switch
+        {
+            "All"       => "⬇",
+            "Active"    => "▶",
+            "Completed" => "✓",
+            "Scheduled" => "🕒",
+            "Errors"    => "⚠",
+            "Videos"    => "🎬",
+            "Music"     => "🎵",
+            "Documents" => "📄",
+            "Archives"  => "📦",
+            "Programs"  => "💿",
+            "Images"    => "🖼",
+            _           => ""
+        };
+    }
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+/// <summary>
+/// Returns Collapsed for separator items (───), Visible for real nav items.
+/// </summary>
+public class NavItemVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => (value as string)?.StartsWith("─") == true ? Visibility.Collapsed : Visibility.Visible;
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+/// <summary>
+/// Returns Visible only for separator items (───).
+/// </summary>
+public class NavSeparatorVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => (value as string)?.StartsWith("─") == true ? Visibility.Visible : Visibility.Collapsed;
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotImplementedException();
+}
+
+/// <summary>
+/// Converts int count: returns Collapsed when count > 0 (hides empty state).
+/// Supports "inverse" parameter.
+/// </summary>
+public class CountToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        int count = value is int i ? i : 0;
+        bool inverse = parameter?.ToString() == "inverse";
+        bool isEmpty = count == 0;
+        return (inverse ? !isEmpty : isEmpty) ? Visibility.Visible : Visibility.Collapsed;
+    }
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotImplementedException();
 }

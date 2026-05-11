@@ -8,6 +8,8 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -18,6 +20,16 @@ namespace CortexSpeed.Presentation.WPF.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly ISender _mediator;
+
+    // Used to resolve real filenames from Content-Disposition headers
+    private static readonly HttpClient _httpProbe = new(new HttpClientHandler
+    {
+        AllowAutoRedirect = true,
+        MaxAutomaticRedirections = 10
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(8)
+    };
 
     // ──────────────────────────────────────
     // URL Input
@@ -159,7 +171,12 @@ public partial class MainViewModel : ObservableObject
         double totalSpeed = 0;
         long totalAllDownloaded = 0;
 
-        foreach (var item in AllDownloads)
+        // Separate active and inactive downloads to avoid recalculating metrics for completed/paused downloads
+        var activeDownloads = AllDownloads.Where(d => d.Status == DownloadState.Downloading || d.Status == DownloadState.Queued).ToList();
+        var inactiveDownloads = AllDownloads.Where(d => d.Status != DownloadState.Downloading && d.Status != DownloadState.Queued).ToList();
+
+        // ═══ ACTIVE DOWNLOADS: Full calculation ═══
+        foreach (var item in activeDownloads)
         {
             if (item.JobId != Guid.Empty && StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(item.JobId, out var job))
             {
@@ -167,7 +184,7 @@ public partial class MainViewModel : ObservableObject
                 item.Status = job.State;
                 item.ErrorMessage = job.ErrorMessage;
 
-                // Calculate total downloaded bytes across all segments
+                // Calculate total downloaded bytes across all segments (only for active downloads)
                 long downloadedBytes = job.Segments.Sum(s => s.DownloadedBytes);
                 item.DownloadedSize = downloadedBytes;
                 item.TotalSize = job.TotalSize;
@@ -178,7 +195,7 @@ public partial class MainViewModel : ObservableObject
                     item.ProgressPercentage = (double)downloadedBytes / job.TotalSize * 100;
                 }
 
-                // Speed calculation with delta tracking
+                // Speed calculation with delta tracking (only for Downloading state)
                 if (elapsed > 0.1 && job.State == DownloadState.Downloading)
                 {
                     if (_previousBytes.TryGetValue(item.JobId, out var prevBytes))
@@ -206,14 +223,29 @@ public partial class MainViewModel : ObservableObject
                     }
                     _previousBytes[item.JobId] = downloadedBytes;
                 }
+            }
+        }
 
-                if (job.State == DownloadState.Completed || job.State == DownloadState.Paused || job.State == DownloadState.Canceled)
+        // ═══ INACTIVE DOWNLOADS: Minimal updates ═══
+        foreach (var item in inactiveDownloads)
+        {
+            if (item.JobId != Guid.Empty && StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(item.JobId, out var job))
+            {
+                // Only update status and error message (cheap operation)
+                item.Status = job.State;
+                item.ErrorMessage = job.ErrorMessage;
+
+                // For paused/completed/error/canceled, clear speed and ETA (don't recalculate segments)
+                if (item.Speed != "—")
                 {
-                    if (job.State != DownloadState.Downloading)
-                    {
-                        item.Speed = "—";
-                        item.Eta = "—";
-                    }
+                    item.Speed = "—";
+                    item.Eta = "—";
+                }
+
+                // Include completed download sizes in total (they won't change)
+                if (job.State == DownloadState.Completed && item.TotalSize > 0)
+                {
+                    totalAllDownloaded += item.TotalSize;
                 }
             }
         }
@@ -277,6 +309,103 @@ public partial class MainViewModel : ObservableObject
         DialogScheduleEnabled = false;
         DialogScheduleDate = DateTime.Now.AddHours(1);
         IsAddDialogOpen = true;
+    }
+
+    /// <summary>
+    /// Called by LocalHttpServer when the browser extension intercepts a download.
+    /// Probes the URL for a real filename (Content-Disposition), then opens the
+    /// Add Download dialog pre-filled — exactly like Free Download Manager.
+    /// </summary>
+    public void OpenAddDialogFromBrowser(string url, string suggestedFilename)
+    {
+        // Run filename resolution in background, then open dialog on UI thread
+        Task.Run(async () =>
+        {
+            var resolvedName = await ResolveFileNameAsync(url, suggestedFilename);
+
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+            {
+                DialogUrl = url;
+                DialogFileName = resolvedName;
+                DialogSavePath = DefaultDownloadFolder;
+                DialogSegmentCount = 16;
+                DialogScheduleEnabled = false;
+                DialogScheduleDate = DateTime.Now.AddHours(1);
+                IsAddDialogOpen = true;
+
+                // Bring window to front
+                var mainWindow = System.Windows.Application.Current?.MainWindow;
+                if (mainWindow != null)
+                {
+                    if (mainWindow.WindowState == WindowState.Minimized)
+                        mainWindow.WindowState = WindowState.Normal;
+                    mainWindow.Activate();
+                    mainWindow.Topmost = true;
+                    mainWindow.Topmost = false;
+                    mainWindow.Focus();
+                }
+            });
+        });
+    }
+
+    /// <summary>
+    /// Sends a HEAD request to the URL and extracts the real filename from
+    /// Content-Disposition: attachment; filename="real-name.zip"
+    /// Falls back to the URL path filename if the header is missing.
+    /// </summary>
+    private static async Task<string> ResolveFileNameAsync(string url, string fallback)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Head, url);
+            req.Headers.UserAgent.ParseAdd("Mozilla/5.0 CortexSpeed/4.0");
+            using var resp = await _httpProbe.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+
+            // 1. Try Content-Disposition header
+            if (resp.Content.Headers.ContentDisposition is { } cd)
+            {
+                var name = cd.FileNameStar ?? cd.FileName;
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    name = name.Trim('"', ' ', '\'');
+                    name = SanitizeFileName(name);
+                    if (!string.IsNullOrWhiteSpace(name)) return name;
+                }
+            }
+
+            // 2. Try the final (redirected) URL path
+            var finalUrl = resp.RequestMessage?.RequestUri?.ToString() ?? url;
+            var fromPath = Path.GetFileName(new Uri(finalUrl).LocalPath);
+            fromPath = SanitizeFileName(fromPath);
+            if (!string.IsNullOrWhiteSpace(fromPath) && fromPath.Length > 3 && fromPath.Contains('.'))
+                return fromPath;
+        }
+        catch { /* Network error — use fallback */ }
+
+        // 3. Fallback: try the original URL path
+        try
+        {
+            var fromOrig = Path.GetFileName(new Uri(url).LocalPath);
+            fromOrig = SanitizeFileName(fromOrig);
+            if (!string.IsNullOrWhiteSpace(fromOrig) && fromOrig.Length > 3 && fromOrig.Contains('.'))
+                return fromOrig;
+        }
+        catch { }
+
+        return string.IsNullOrWhiteSpace(fallback) ? $"download_{DateTime.Now:yyyyMMdd_HHmmss}.bin" : fallback;
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+        // Remove URL encoding
+        try { name = Uri.UnescapeDataString(name); } catch { }
+        // Remove query strings that snuck in
+        var q = name.IndexOf('?');
+        if (q >= 0) name = name[..q];
+        foreach (var c in Path.GetInvalidFileNameChars())
+            name = name.Replace(c, '_');
+        return name.Trim();
     }
 
     [RelayCommand]

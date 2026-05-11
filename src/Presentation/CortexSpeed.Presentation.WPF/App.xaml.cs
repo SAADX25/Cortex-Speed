@@ -32,6 +32,12 @@ public partial class App : System.Windows.Application
         await AppHost!.StartAsync();
 
         var mainWindow = AppHost.Services.GetRequiredService<MainWindow>();
+        var viewModel  = AppHost.Services.GetRequiredService<MainViewModel>();
+
+        // Wire the browser-extension callback → opens the Add Download dialog
+        CortexSpeed.Infrastructure.BrowserExtensions.LocalHttpServer.ShowDownloadDialog =
+            (url, filename) => viewModel.OpenAddDialogFromBrowser(url, filename);
+
         mainWindow.Show();
     }
 
