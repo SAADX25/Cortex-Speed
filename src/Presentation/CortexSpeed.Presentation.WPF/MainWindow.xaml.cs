@@ -64,4 +64,46 @@ public partial class MainWindow : Window
     {
         e.Handled = true;
     }
+
+    /// <summary>
+    /// Opens the delete popup menu at the click position.
+    /// </summary>
+    private void OpenDeleteMenu_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button btn)
+        {
+            _pendingDeleteItem = btn.Tag as CortexSpeed.Presentation.WPF.ViewModels.DownloadItemViewModel;
+            DeletePopup.IsOpen = true;
+        }
+    }
+
+    private CortexSpeed.Presentation.WPF.ViewModels.DownloadItemViewModel? _pendingDeleteItem;
+
+    /// <summary>
+    /// Removes the download from the list only (file stays on disk).
+    /// </summary>
+    private void RemoveFromList_Click(object sender, RoutedEventArgs e)
+    {
+        DeletePopup.IsOpen = false;
+        if (DataContext is MainViewModel vm && _pendingDeleteItem != null)
+        {
+            if (vm.RemoveDownloadCommand.CanExecute(_pendingDeleteItem))
+                vm.RemoveDownloadCommand.Execute(_pendingDeleteItem);
+            _pendingDeleteItem = null;
+        }
+    }
+
+    /// <summary>
+    /// Removes the download from the list AND deletes the file from disk.
+    /// </summary>
+    private void DeleteFromDisk_Click(object sender, RoutedEventArgs e)
+    {
+        DeletePopup.IsOpen = false;
+        if (DataContext is MainViewModel vm && _pendingDeleteItem != null)
+        {
+            if (vm.RemoveWithFileCommand.CanExecute(_pendingDeleteItem))
+                vm.RemoveWithFileCommand.Execute(_pendingDeleteItem);
+            _pendingDeleteItem = null;
+        }
+    }
 }

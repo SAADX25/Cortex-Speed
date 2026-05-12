@@ -104,28 +104,21 @@
                             </Button>
                         </StackPanel>
 
-                        <!-- Nav list -->
-                        <ScrollViewer VerticalScrollBarVisibility="Hidden" Margin="0,4,0,0">
-                            <ItemsControl ItemsSource="{Binding SidebarItems}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <!-- Separator row -->
-                                        <Border Visibility="{Binding Converter={StaticResource NavSep}}"
-                                                Height="1" Background="{StaticResource BorderSubtleBrush}"
-                                                Margin="16,6"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
-
-                        <!-- Actual selectable nav items (hidden separators) -->
+                        <!-- Single unified nav list -->
                         <ListBox ItemsSource="{Binding SidebarItems}" SelectedItem="{Binding SelectedCategory}"
-                                 Background="Transparent" BorderThickness="0" Margin="0,4,0,0"
+                                 Background="Transparent" BorderThickness="0" Margin="0,6,0,0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  ItemContainerStyle="{StaticResource SidebarItemStyle}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Grid Visibility="{Binding Converter={StaticResource NavVis}}">
-                                        <StackPanel Orientation="Horizontal">
+                                    <Grid>
+                                        <!-- Separator line (visible only for ─── items) -->
+                                        <Border Visibility="{Binding Converter={StaticResource NavSep}}"
+                                                Height="1" Background="{StaticResource BorderSubtleBrush}"
+                                                Margin="4,4"/>
+                                        <!-- Nav item content (hidden for ─── items) -->
+                                        <StackPanel Orientation="Horizontal"
+                                                    Visibility="{Binding Converter={StaticResource NavVis}}">
                                             <TextBlock Text="{Binding Converter={StaticResource NavIcon}}"
                                                        FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
                                                        Width="20" FontSize="15"
@@ -183,7 +176,7 @@
                         <ItemsControl ItemsSource="{Binding FilteredDownloads}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border x:Name="Card" CornerRadius="12" Margin="2,6" Padding="20,16"
+                                    <Border x:Name="Card" CornerRadius="14" Margin="4,5" Padding="18,16,18,14"
                                             Background="{StaticResource SurfaceBrush}"
                                             BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
 
@@ -194,141 +187,150 @@
                                                 <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
 
-                                            <!-- Row 1: icon + name + status + actions -->
+                                            <!-- Row 1: icon + info + status/actions -->
                                             <Grid Grid.Row="0">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <!-- Category icon bubble -->
-                                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
-                                                        Background="{StaticResource SurfaceHighlightBrush}" VerticalAlignment="Center" Margin="0,0,16,0">
+                                                <!-- Category icon -->
+                                                <Border Grid.Column="0" Width="44" Height="44" CornerRadius="12"
+                                                        VerticalAlignment="Center" Margin="0,0,14,0">
+                                                    <Border.Background>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                            <GradientStop Color="#111820" Offset="0"/>
+                                                            <GradientStop Color="#182030" Offset="1"/>
+                                                        </LinearGradientBrush>
+                                                    </Border.Background>
                                                     <TextBlock Text="{Binding Category, Converter={StaticResource CategoryIcon}}"
-                                                               FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                               FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                               FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                               Foreground="{StaticResource AccentBrush}"/>
                                                 </Border>
 
                                                 <!-- Filename + URL -->
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
                                                     <TextBlock Text="{Binding FileName}"
                                                                Foreground="{StaticResource TextPrimaryBrush}"
-                                                               FontSize="15" FontWeight="SemiBold"
+                                                               FontSize="14" FontWeight="SemiBold"
                                                                TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding Url}"
-                                                               Foreground="{StaticResource TextSecondaryBrush}"
-                                                               FontSize="11.5" TextWrapping="NoWrap"
+                                                               Foreground="{StaticResource TextMutedBrush}"
+                                                               FontSize="10.5" TextWrapping="NoWrap"
                                                                TextTrimming="CharacterEllipsis"
-                                                               Margin="0,3,0,0"/>
+                                                               Margin="0,3,0,0" MaxWidth="400"/>
                                                 </StackPanel>
 
-                                                <!-- Status + quick actions -->
-                                                <Grid Grid.Column="2" VerticalAlignment="Center">
-                                                    <!-- Status visibility hides when actions show? No, actions and status can be side by side or actions can overlay -->
-                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                                        <!-- Status dot + label -->
-                                                        <Border x:Name="StatusBadge" CornerRadius="12" Padding="10,5" Margin="0,0,10,0"
-                                                                Background="{StaticResource SurfaceHighlightBrush}">
-                                                            <StackPanel Orientation="Horizontal">
-                                                                <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                                                                         Fill="{Binding Status, Converter={StaticResource StateBrush}}"
-                                                                         Margin="0,0,6,0"/>
-                                                                <TextBlock Text="{Binding Status, Converter={StaticResource StateText}}"
-                                                                           Foreground="{Binding Status, Converter={StaticResource StateColor}}"
-                                                                           FontSize="12" FontWeight="Medium"/>
-                                                            </StackPanel>
-                                                        </Border>
-
-                                                        <!-- Quick actions panel -->
-                                                        <StackPanel x:Name="ActionPanel" Orientation="Horizontal" Opacity="0">
-                                                            <!-- Quick: Pause -->
-                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Pause" Margin="0,0,4,0"
-                                                                    Visibility="{Binding Status, Converter={StaticResource IsDownloading}}"
-                                                                    Command="{Binding DataContext.PauseDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    CommandParameter="{Binding}">
-                                                                <TextBlock Text="⏸" FontSize="14"/>
-                                                            </Button>
-                                                            <!-- Quick: Resume -->
-                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Resume" Margin="0,0,4,0"
-                                                                    Visibility="{Binding Status, Converter={StaticResource IsPaused}}"
-                                                                    Command="{Binding DataContext.ResumeDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    CommandParameter="{Binding}">
-                                                                <TextBlock Text="▶" FontSize="12"/>
-                                                            </Button>
-                                                            <!-- Quick: Open File -->
-                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open File" Margin="0,0,4,0"
-                                                                    Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
-                                                                    Command="{Binding DataContext.OpenFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    CommandParameter="{Binding}">
-                                                                <TextBlock Text="📄" FontSize="14"/>
-                                                            </Button>
-                                                            <!-- Quick: Open Folder -->
-                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open Folder" Margin="0,0,4,0"
-                                                                    Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
-                                                                    Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    CommandParameter="{Binding}">
-                                                                <TextBlock Text="📂" FontSize="14"/>
-                                                            </Button>
-                                                            <!-- Quick: Remove -->
-                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Remove"
-                                                                    Command="{Binding DataContext.RemoveDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    CommandParameter="{Binding}">
-                                                                <TextBlock Text="🗑" FontSize="14"/>
-                                                            </Button>
-                                                        </StackPanel>
+                                                <!-- Status badge (always visible) -->
+                                                <Border x:Name="StatusBadge" Grid.Column="2" CornerRadius="8" Padding="10,5"
+                                                        VerticalAlignment="Center" Margin="0,0,8,0">
+                                                    <Border.Background>
+                                                        <SolidColorBrush Color="#12161E"/>
+                                                    </Border.Background>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <Ellipse Width="7" Height="7" VerticalAlignment="Center"
+                                                                 Fill="{Binding Status, Converter={StaticResource StateBrush}}" Margin="0,0,6,0"/>
+                                                        <TextBlock Text="{Binding Status, Converter={StaticResource StateText}}"
+                                                                   Foreground="{Binding Status, Converter={StaticResource StateColor}}"
+                                                                   FontSize="11" FontWeight="SemiBold"/>
                                                     </StackPanel>
-                                                </Grid>
+                                                </Border>
+
+                                                <!-- Action buttons -->
+                                                <StackPanel x:Name="ActionPanel" Grid.Column="3" Orientation="Horizontal"
+                                                            Opacity="0" IsHitTestVisible="False" VerticalAlignment="Center">
+                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Pause" Margin="0,0,2,0"
+                                                            Visibility="{Binding Status, Converter={StaticResource IsDownloading}}"
+                                                            Command="{Binding DataContext.PauseDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock Text="&#xE769;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"/>
+                                                    </Button>
+                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Resume" Margin="0,0,2,0"
+                                                            Visibility="{Binding Status, Converter={StaticResource IsPaused}}"
+                                                            Command="{Binding DataContext.ResumeDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock Text="&#xE768;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"/>
+                                                    </Button>
+                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open File" Margin="0,0,2,0"
+                                                            Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
+                                                            Command="{Binding DataContext.OpenFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock Text="&#xE8E5;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"/>
+                                                    </Button>
+                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open Folder" Margin="0,0,2,0"
+                                                            Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
+                                                            Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock Text="&#xE838;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"/>
+                                                    </Button>
+                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Remove"
+                                                            Tag="{Binding}"
+                                                            Click="OpenDeleteMenu_Click">
+                                                        <TextBlock Text="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="13"/>
+                                                    </Button>
+                                                </StackPanel>
                                             </Grid>
 
                                             <!-- Progress bar -->
-                                            <ProgressBar Grid.Row="1" Value="{Binding ProgressPercentage}"
-                                                         Style="{StaticResource ModernProgressBarStyle}"
-                                                         Height="3" Maximum="100" Margin="0,16,0,16"/>
+                                            <Grid Grid.Row="1" Margin="0,12,0,10">
+                                                <ProgressBar Value="{Binding ProgressPercentage}"
+                                                             Style="{StaticResource ModernProgressBarStyle}"
+                                                             Height="5" Maximum="100"/>
+                                            </Grid>
 
-                                            <!-- Row 3: size / speed / ETA / progress % -->
+                                            <!-- Row 3: stats -->
                                             <Grid Grid.Row="2">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
-                                                    <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 
-                                                <TextBlock Grid.Column="0" Text="{Binding TotalSizeFormatted}"
-                                                           Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,20,0" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="1" Text="{Binding Speed}"
-                                                           Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                
-                                                <TextBlock Grid.Column="3" Text="{Binding Eta}"
-                                                           Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="0" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,14,0">
+                                                    <Run Text="{Binding DownloadedSizeFormatted, Mode=OneWay}"/>
+                                                    <Run Text="/" Foreground="{StaticResource TextMutedBrush}"/>
+                                                    <Run Text="{Binding TotalSizeFormatted, Mode=OneWay}"/>
+                                                </TextBlock>
+
+                                                <Border Grid.Column="1" CornerRadius="4" Padding="7,2" Margin="0,0,10,0"
+                                                        VerticalAlignment="Center" Background="#0D1118">
+                                                    <TextBlock Text="{Binding Speed}" Foreground="{StaticResource AccentBrush}"
+                                                               FontSize="11" FontWeight="SemiBold"/>
+                                                </Border>
+
+                                                <TextBlock Grid.Column="2" Text="{Binding Eta}"
+                                                           Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center"/>
+
                                                 <TextBlock Grid.Column="4" Text="{Binding ProgressText}"
-                                                           Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                                           Foreground="{StaticResource TextPrimaryBrush}" FontSize="12.5"
+                                                           FontWeight="Bold" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Grid>
                                     </Border>
                                     <DataTemplate.Triggers>
-                                        <!-- Hover state for Card -->
                                         <Trigger SourceName="Card" Property="IsMouseOver" Value="True">
                                             <Setter TargetName="Card" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
                                             <Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource BorderMediumBrush}"/>
+                                            <Setter TargetName="ActionPanel" Property="IsHitTestVisible" Value="True"/>
                                         </Trigger>
-                                        <!-- Animate Action Panel to appear -->
+                                        
                                         <EventTrigger RoutedEvent="MouseEnter" SourceName="Card">
                                             <BeginStoryboard>
                                                 <Storyboard>
-                                                    <DoubleAnimation Storyboard.TargetName="ActionPanel"
-                                                                     Storyboard.TargetProperty="Opacity"
-                                                                     To="1" Duration="0:0:0.15"/>
+                                                    <DoubleAnimation Storyboard.TargetName="ActionPanel" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.15"/>
                                                 </Storyboard>
                                             </BeginStoryboard>
                                         </EventTrigger>
+                                        
                                         <EventTrigger RoutedEvent="MouseLeave" SourceName="Card">
                                             <BeginStoryboard>
                                                 <Storyboard>
-                                                    <DoubleAnimation Storyboard.TargetName="ActionPanel"
-                                                                     Storyboard.TargetProperty="Opacity"
-                                                                     To="0" Duration="0:0:0.15"/>
+                                                    <DoubleAnimation Storyboard.TargetName="ActionPanel" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.1"/>
                                                 </Storyboard>
                                             </BeginStoryboard>
                                         </EventTrigger>
@@ -371,6 +373,42 @@
                     </TextBlock>
                 </Grid>
             </Border>
+
+            <!-- ═══ DELETE POPUP (inside window) ═══ -->
+            <Popup x:Name="DeletePopup" Grid.Row="0" Grid.RowSpan="3"
+                   AllowsTransparency="True" Placement="MousePoint"
+                   StaysOpen="False">
+                <Border Background="#181C24" CornerRadius="10" Padding="6"
+                        BorderBrush="{StaticResource BorderMediumBrush}" BorderThickness="1">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="20" ShadowDepth="4" Opacity="0.6" Color="#000000" Direction="270"/>
+                    </Border.Effect>
+                    <StackPanel MinWidth="200">
+                        <!-- Remove from list -->
+                        <Button x:Name="RemoveFromListBtn" Style="{StaticResource GhostButtonStyle}"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                Padding="12,9" Click="RemoveFromList_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE738;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                           FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Text="Remove from list" FontSize="12.5" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <!-- Separator -->
+                        <Border Height="1" Background="{StaticResource BorderSubtleBrush}" Margin="8,3"/>
+                        <!-- Delete from disk -->
+                        <Button x:Name="DeleteFromDiskBtn" Style="{StaticResource GhostButtonStyle}"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                Padding="12,9" Click="DeleteFromDisk_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE74D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                           FontSize="13" Foreground="#FF4D6A" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Text="Delete from disk" FontSize="12.5" Foreground="#FF4D6A" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </Popup>
 
             <!-- ═══ ADD DOWNLOAD DIALOG ═══ -->
             <Border x:Name="AddDialogBackground" Grid.Row="0" Grid.RowSpan="3" CornerRadius="12"
