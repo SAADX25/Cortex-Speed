@@ -14,7 +14,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
         // Persistence
-        services.AddSingleton<IDownloadJobRepository, InMemoryDownloadJobRepository>();
+        services.AddSingleton<IDownloadJobRepository, JsonDownloadJobRepository>();
 
         // Register the high-performance disk I/O provider
         services.AddSingleton<IFileSystemProvider, FileSystemProvider>();

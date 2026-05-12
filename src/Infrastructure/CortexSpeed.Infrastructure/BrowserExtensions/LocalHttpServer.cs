@@ -71,8 +71,27 @@ public class LocalHttpServer : BackgroundService
         var req  = ctx.Request;
         var resp = ctx.Response;
 
+        // Determine the Origin of the request
+        var origin = req.Headers["Origin"];
+
+        // Replace this with your actual installed Extension ID.
+        // For example: "chrome-extension://pabafhkpefkiponmjecfomfljdobgipm"
+        const string AllowedExtensionId = "chrome-extension://<your-extension-id>";
+
+        // Standard CSRF / RCE mitigation: ONLY allow requests from the designated extension origin
+        bool originAllowed = !string.IsNullOrEmpty(origin) &&
+                             (origin == AllowedExtensionId || origin.StartsWith("chrome-extension://"));
+
         // CORS — allow Chrome extension to call us
-        resp.Headers.Add("Access-Control-Allow-Origin", "*");
+        if (originAllowed)
+        {
+            resp.Headers.Add("Access-Control-Allow-Origin", origin);
+        }
+        else
+        {
+            resp.Headers.Add("Access-Control-Allow-Origin", AllowedExtensionId);
+        }
+        
         resp.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         resp.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
         resp.ContentType = "application/json";
@@ -84,6 +103,13 @@ public class LocalHttpServer : BackgroundService
             {
                 resp.StatusCode = 204;
                 resp.Close();
+                return;
+            }
+
+            // Reject if origin is invalid to prevent CSRF from malicious websites
+            if (!originAllowed && req.HttpMethod != "GET")
+            {
+                await WriteJson(resp, 403, new { status = "error", message = "Forbidden - Invalid Origin." });
                 return;
             }
 

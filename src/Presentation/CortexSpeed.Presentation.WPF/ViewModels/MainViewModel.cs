@@ -166,7 +166,7 @@ public partial class MainViewModel : ObservableObject
         StartClipboardMonitor();
     }
 
-    private void UpdateProgress()
+    private async void UpdateProgress()
     {
         var now = DateTime.UtcNow;
         var elapsed = (now - _lastSpeedCheck).TotalSeconds;
@@ -180,7 +180,7 @@ public partial class MainViewModel : ObservableObject
         // ═══ ACTIVE DOWNLOADS: Full calculation ═══
         foreach (var item in activeDownloads)
         {
-            var job = _jobRepository.GetByIdAsync(item.JobId).Result;
+            var job = await _jobRepository.GetByIdAsync(item.JobId);
             if (item.JobId != Guid.Empty && job != null)
             {
                 // Update basic status
@@ -232,7 +232,7 @@ public partial class MainViewModel : ObservableObject
         // ═══ INACTIVE DOWNLOADS: Minimal updates ═══
         foreach (var item in inactiveDownloads)
         {
-            var job = _jobRepository.GetByIdAsync(item.JobId).Result;
+            var job = await _jobRepository.GetByIdAsync(item.JobId);
             if (item.JobId != Guid.Empty && job != null)
             {
                 // Only update status and error message (cheap operation)

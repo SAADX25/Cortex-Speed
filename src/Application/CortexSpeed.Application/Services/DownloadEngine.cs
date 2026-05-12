@@ -83,7 +83,8 @@ public class DownloadEngine : IDownloadEngine
             // 5. Start ISegmentDownloader tasks in parallel
             var downloadTasks = new List<Task>();
             
-            foreach (var segment in job.Segments)
+            // ToList is used because job.Segments might be modified during segment stealing
+            foreach (var segment in job.Segments.ToList())
             {
                 if (segment.IsCompleted || segment.CurrentOffset > segment.EndOffset)
                 {
@@ -91,36 +92,7 @@ public class DownloadEngine : IDownloadEngine
                     continue;
                 }
 
-                // Open a separate stream handle for each segment to allow concurrent writes
-                var stream = _fileSystemProvider.OpenFileForWrite(job.DestinationFilePath);
-                
-                var task = Task.Run(async () => 
-                {
-                    segment.State = DownloadState.Downloading;
-                    try
-                    {
-                        await _segmentDownloader.DownloadSegmentAsync(job.Url, segment, handler, stream, cts.Token);
-                        if (!cts.Token.IsCancellationRequested)
-                        {
-                            segment.State = DownloadState.Completed;
-                        }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Paused or canceled - state is set by the caller
-                    }
-                    catch (Exception ex)
-                    {
-                        segment.State = DownloadState.Error;
-                        job.ErrorMessage = ex.Message;
-                    }
-                    finally
-                    {
-                        await stream.DisposeAsync();
-                    }
-                }, cts.Token);
-                
-                downloadTasks.Add(task);
+                downloadTasks.Add(RunSegmentWorkerAsync(job, segment, handler, cts.Token));
             }
 
             // Wait for all segments to finish
@@ -201,39 +173,9 @@ public class DownloadEngine : IDownloadEngine
                 // Segments that were already completed are left as-is
                 var downloadTasks = new List<Task>();
                 
-                foreach (var segment in job.Segments.Where(s => s.State == DownloadState.Paused || s.State == DownloadState.Error))
+                foreach (var segment in job.Segments.Where(s => s.State == DownloadState.Paused || s.State == DownloadState.Error).ToList())
                 {
-                    // Open a separate stream handle for each segment to allow concurrent writes
-                    var stream = _fileSystemProvider.OpenFileForWrite(job.DestinationFilePath);
-                    
-                    var task = Task.Run(async () => 
-                    {
-                        segment.State = DownloadState.Downloading;
-                        try
-                        {
-                            // Resume from the segment's CurrentOffset (no previously downloaded data is lost)
-                            await _segmentDownloader.DownloadSegmentAsync(job.Url, segment, handler, stream, cts.Token);
-                            if (!cts.Token.IsCancellationRequested)
-                            {
-                                segment.State = DownloadState.Completed;
-                            }
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            // Paused or canceled - state is set by the caller
-                        }
-                        catch (Exception ex)
-                        {
-                            segment.State = DownloadState.Error;
-                            job.ErrorMessage = ex.Message;
-                        }
-                        finally
-                        {
-                            await stream.DisposeAsync();
-                        }
-                    }, cts.Token);
-                    
-                    downloadTasks.Add(task);
+                    downloadTasks.Add(RunSegmentWorkerAsync(job, segment, handler, cts.Token));
                 }
 
                 // Wait for all resumed segments to finish
@@ -287,5 +229,81 @@ public class DownloadEngine : IDownloadEngine
                 job.State = DownloadState.Canceled;
             }
         }
+    }
+
+    private Task RunSegmentWorkerAsync(DownloadJob job, DownloadSegment initialSegment, IProtocolHandler handler, CancellationToken token)
+    {
+        return Task.Run(async () =>
+        {
+            var currentSegment = initialSegment;
+
+            while (currentSegment != null && !token.IsCancellationRequested)
+            {
+                var stream = _fileSystemProvider.OpenFileForWrite(job.DestinationFilePath);
+                try
+                {
+                    currentSegment.State = DownloadState.Downloading;
+                    await _segmentDownloader.DownloadSegmentAsync(job.Url, currentSegment, handler, stream, token);
+                    
+                    if (!token.IsCancellationRequested)
+                    {
+                        currentSegment.State = DownloadState.Completed;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    // Paused or canceled
+                }
+                catch (Exception ex)
+                {
+                    currentSegment.State = DownloadState.Error;
+                    job.ErrorMessage = ex.Message;
+                }
+                finally
+                {
+                    await stream.DisposeAsync();
+                }
+
+                if (token.IsCancellationRequested || job.State != DownloadState.Downloading)
+                {
+                    break;
+                }
+
+                currentSegment = null; // Assume no more work
+
+                // Dynamic Segmentation / Segment Stealing
+                lock (job.Segments)
+                {
+                    var largestSegment = job.Segments
+                        .Where(s => s.State == DownloadState.Downloading || s.State == DownloadState.Queued)
+                        .OrderByDescending(s => s.EndOffset - s.CurrentOffset)
+                        .FirstOrDefault();
+
+                    // Only steal if remaining size is significant (e.g., > 1MB) to prevent tiny redundant splits
+                    if (largestSegment != null)
+                    {
+                        long remaining = largestSegment.EndOffset - largestSegment.CurrentOffset;
+                        if (remaining > 1024 * 1024)
+                        {
+                            long splitOffset = largestSegment.CurrentOffset + (remaining / 2);
+                            
+                            var newSegment = new DownloadSegment
+                            {
+                                JobId = job.Id,
+                                StartOffset = splitOffset + 1,
+                                EndOffset = largestSegment.EndOffset,
+                                CurrentOffset = splitOffset + 1,
+                                State = DownloadState.Queued
+                            };
+                            
+                            largestSegment.EndOffset = splitOffset;
+                            job.Segments.Add(newSegment);
+                            
+                            currentSegment = newSegment;
+                        }
+                    }
+                }
+            }
+        }, token);
     }
 }
