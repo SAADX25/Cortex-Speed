@@ -39,55 +39,16 @@ public partial class MainViewModel : ObservableObject
     private string _urlInput = string.Empty;
 
     // ──────────────────────────────────────
+    // Child ViewModels
+    // ──────────────────────────────────────
+    public SettingsViewModel Settings { get; }
+    public AddDownloadViewModel AddDownload { get; }
+
+    // ──────────────────────────────────────
     // Navigation
     // ──────────────────────────────────────
     [ObservableProperty]
     private string _selectedCategory = "All";
-
-    [ObservableProperty]
-    private bool _isAddDialogOpen;
-
-    [ObservableProperty]
-    private bool _isSettingsOpen;
-
-    // ──────────────────────────────────────
-    // Add Download Dialog Properties
-    // ──────────────────────────────────────
-    [ObservableProperty]
-    private string _dialogUrl = string.Empty;
-
-    [ObservableProperty]
-    private string _dialogFileName = string.Empty;
-
-    [ObservableProperty]
-    private string _dialogSavePath = string.Empty;
-
-    [ObservableProperty]
-    private int _dialogSegmentCount = 16;
-
-    [ObservableProperty]
-    private bool _dialogScheduleEnabled;
-
-    [ObservableProperty]
-    private DateTime _dialogScheduleDate = DateTime.Now.AddHours(1);
-
-    // ──────────────────────────────────────
-    // Settings Properties
-    // ──────────────────────────────────────
-    [ObservableProperty]
-    private string _defaultDownloadFolder = string.Empty;
-
-    [ObservableProperty]
-    private int _maxConcurrentDownloads = 5;
-
-    [ObservableProperty]
-    private bool _clipboardMonitorEnabled = true;
-
-    [ObservableProperty]
-    private bool _startMinimized;
-
-    [ObservableProperty]
-    private bool _showNotifications = true;
 
     // ──────────────────────────────────────
     // Statistics
@@ -149,11 +110,9 @@ public partial class MainViewModel : ObservableObject
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
         _jobRepository = jobRepository ?? throw new ArgumentNullException(nameof(jobRepository));
         
-        // Set default download folder
-        _defaultDownloadFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "CortexSpeed");
-        _dialogSavePath = _defaultDownloadFolder;
-        Directory.CreateDirectory(_defaultDownloadFolder);
-        
+        Settings = new SettingsViewModel();
+        AddDownload = new AddDownloadViewModel(_mediator, this, Settings);
+
         // Start a lightweight timer to poll download progress and update UI
         var timer = new DispatcherTimer
         {
@@ -303,171 +262,14 @@ public partial class MainViewModel : ObservableObject
     // Commands
     // ──────────────────────────────────────
 
-    [RelayCommand]
-    private void OpenAddDialog()
-    {
-        DialogUrl = string.Empty;
-        DialogFileName = string.Empty;
-        DialogSavePath = DefaultDownloadFolder;
-        DialogSegmentCount = 16;
-        DialogScheduleEnabled = false;
-        DialogScheduleDate = DateTime.Now.AddHours(1);
-        IsAddDialogOpen = true;
-    }
-
-    /// <summary>
-    /// Called by LocalHttpServer when the browser extension intercepts a download.
-    /// Probes the URL for a real filename (Content-Disposition), then opens the
-    /// Add Download dialog pre-filled — exactly like Free Download Manager.
-    /// </summary>
     public void OpenAddDialogFromBrowser(string url, string suggestedFilename)
     {
-        // Run filename resolution in background, then open dialog on UI thread
-        Task.Run(async () =>
-        {
-            var resolvedName = await ResolveFileNameAsync(url, suggestedFilename);
-
-            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
-            {
-                DialogUrl = url;
-                DialogFileName = resolvedName;
-                DialogSavePath = DefaultDownloadFolder;
-                DialogSegmentCount = 16;
-                DialogScheduleEnabled = false;
-                DialogScheduleDate = DateTime.Now.AddHours(1);
-                IsAddDialogOpen = true;
-
-                // Bring window to front
-                var mainWindow = System.Windows.Application.Current?.MainWindow;
-                if (mainWindow != null)
-                {
-                    if (mainWindow.WindowState == WindowState.Minimized)
-                        mainWindow.WindowState = WindowState.Normal;
-                    mainWindow.Activate();
-                    mainWindow.Topmost = true;
-                    mainWindow.Topmost = false;
-                    mainWindow.Focus();
-                }
-            });
-        });
-    }
-
-    /// <summary>
-    /// Sends a HEAD request to the URL and extracts the real filename from
-    /// Content-Disposition: attachment; filename="real-name.zip"
-    /// Falls back to the URL path filename if the header is missing.
-    /// </summary>
-    private static async Task<string> ResolveFileNameAsync(string url, string fallback)
-    {
-        try
-        {
-            using var req = new HttpRequestMessage(HttpMethod.Head, url);
-            req.Headers.UserAgent.ParseAdd("Mozilla/5.0 CortexSpeed/4.0");
-            using var resp = await _httpProbe.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
-
-            // 1. Try Content-Disposition header
-            if (resp.Content.Headers.ContentDisposition is { } cd)
-            {
-                var name = cd.FileNameStar ?? cd.FileName;
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    name = name.Trim('"', ' ', '\'');
-                    name = SanitizeFileName(name);
-                    if (!string.IsNullOrWhiteSpace(name)) return name;
-                }
-            }
-
-            // 2. Try the final (redirected) URL path
-            var finalUrl = resp.RequestMessage?.RequestUri?.ToString() ?? url;
-            var fromPath = Path.GetFileName(new Uri(finalUrl).LocalPath);
-            fromPath = SanitizeFileName(fromPath);
-            if (!string.IsNullOrWhiteSpace(fromPath) && fromPath.Length > 3 && fromPath.Contains('.'))
-                return fromPath;
-        }
-        catch { /* Network error — use fallback */ }
-
-        // 3. Fallback: try the original URL path
-        try
-        {
-            var fromOrig = Path.GetFileName(new Uri(url).LocalPath);
-            fromOrig = SanitizeFileName(fromOrig);
-            if (!string.IsNullOrWhiteSpace(fromOrig) && fromOrig.Length > 3 && fromOrig.Contains('.'))
-                return fromOrig;
-        }
-        catch { }
-
-        return string.IsNullOrWhiteSpace(fallback) ? $"download_{DateTime.Now:yyyyMMdd_HHmmss}.bin" : fallback;
-    }
-
-    private static string SanitizeFileName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
-        // Remove URL encoding
-        try { name = Uri.UnescapeDataString(name); } catch { }
-        // Remove query strings that snuck in
-        var q = name.IndexOf('?');
-        if (q >= 0) name = name[..q];
-        foreach (var c in Path.GetInvalidFileNameChars())
-            name = name.Replace(c, '_');
-        return name.Trim();
-    }
-
-    [RelayCommand]
-    private void CloseAddDialog()
-    {
-        IsAddDialogOpen = false;
-    }
-
-    [RelayCommand]
-    private async Task ConfirmAddDownloadAsync()
-    {
-        var url = string.IsNullOrWhiteSpace(DialogUrl) ? UrlInput : DialogUrl;
-        if (string.IsNullOrWhiteSpace(url)) return;
-
-        // Ensure URL has a scheme
-        if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
-            !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
-            !url.StartsWith("ftp://", StringComparison.OrdinalIgnoreCase))
-        {
-            url = "https://" + url;
-        }
-
-        var fileName = DialogFileName;
-        if (string.IsNullOrWhiteSpace(fileName))
-        {
-            fileName = ExtractFileName(url);
-        }
-
-        var destFolder = string.IsNullOrWhiteSpace(DialogSavePath) ? DefaultDownloadFolder : DialogSavePath;
-        Directory.CreateDirectory(destFolder);
-
-        DateTime? scheduledAt = DialogScheduleEnabled ? DialogScheduleDate : null;
-
-        var command = new StartDownloadCommand(url, destFolder, fileName, DialogSegmentCount, 0, scheduledAt);
-        var jobId = await _mediator.Send(command);
-
-        var category = Domain.Entities.DownloadJob.ClassifyByExtension(fileName);
-
-        AllDownloads.Add(new DownloadItemViewModel
-        {
-            JobId = jobId,
-            FileName = fileName,
-            Status = scheduledAt.HasValue ? DownloadState.Scheduled : DownloadState.Queued,
-            ProgressPercentage = 0,
-            Category = category,
-            Url = url,
-            DestinationPath = Path.Combine(destFolder, fileName),
-            CreatedAt = DateTime.UtcNow
-        });
-
-        // Switch to "All" so the new download is visible
-        SelectedCategory = "All";
-        UrlInput = string.Empty;
-        IsAddDialogOpen = false;
+        AddDownload.OpenFromBrowser(url, suggestedFilename);
     }
 
     [RelayCommand]
     private async Task QuickDownloadAsync()
+    {
     {
         if (string.IsNullOrWhiteSpace(UrlInput)) return;
 
@@ -483,11 +285,11 @@ public partial class MainViewModel : ObservableObject
 
         var fileName = ExtractFileName(url);
 
-        Directory.CreateDirectory(DefaultDownloadFolder);
+        Directory.CreateDirectory(Settings.DefaultDownloadFolder);
 
         try
         {
-            var command = new StartDownloadCommand(url, DefaultDownloadFolder, fileName);
+            var command = new StartDownloadCommand(url, Settings.DefaultDownloadFolder, fileName);
             var jobId = await _mediator.Send(command);
 
             var category = Domain.Entities.DownloadJob.ClassifyByExtension(fileName);
@@ -500,7 +302,7 @@ public partial class MainViewModel : ObservableObject
                 ProgressPercentage = 0,
                 Category = category,
                 Url = url,
-                DestinationPath = Path.Combine(DefaultDownloadFolder, fileName),
+                DestinationPath = Path.Combine(Settings.DefaultDownloadFolder, fileName),
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -597,46 +399,6 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenSettings()
-    {
-        IsSettingsOpen = !IsSettingsOpen;
-    }
-
-    [RelayCommand]
-    private void CloseSettings()
-    {
-        IsSettingsOpen = false;
-    }
-
-    [RelayCommand]
-    private void SelectSaveFolder()
-    {
-        var dialog = new Microsoft.Win32.OpenFolderDialog
-        {
-            Title = "Select Download Folder",
-            InitialDirectory = DialogSavePath
-        };
-        if (dialog.ShowDialog() == true)
-        {
-            DialogSavePath = dialog.FolderName;
-        }
-    }
-
-    [RelayCommand]
-    private void SelectDefaultFolder()
-    {
-        var dialog = new Microsoft.Win32.OpenFolderDialog
-        {
-            Title = "Select Default Download Folder",
-            InitialDirectory = DefaultDownloadFolder
-        };
-        if (dialog.ShowDialog() == true)
-        {
-            DefaultDownloadFolder = dialog.FolderName;
-        }
-    }
-
-    [RelayCommand]
     private async Task PauseAllAsync()
     {
         foreach (var item in AllDownloads.Where(d => d.Status == DownloadState.Downloading).ToList())
@@ -678,7 +440,7 @@ public partial class MainViewModel : ObservableObject
         };
         clipTimer.Tick += (s, e) =>
         {
-            if (!ClipboardMonitorEnabled) return;
+            if (!Settings.ClipboardMonitorEnabled) return;
             try
             {
                 if (Clipboard.ContainsText())
@@ -738,7 +500,7 @@ public partial class MainViewModel : ObservableObject
     /// Safely extracts a filename from a URL. Handles invalid URIs, query strings, 
     /// and URLs without file extensions.
     /// </summary>
-    private static string ExtractFileName(string url)
+    public static string ExtractFileName(string url)
     {
         try
         {
