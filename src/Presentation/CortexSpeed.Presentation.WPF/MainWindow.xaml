@@ -60,9 +60,15 @@
                         </Border>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="─" Style="{StaticResource WindowChromeButton}" Click="MinimizeClick"/>
-                        <Button Content="□" Style="{StaticResource WindowChromeButton}" Click="MaximizeClick"/>
-                        <Button Content="✕" Style="{StaticResource WindowCloseButton}"  Click="CloseClick"/>
+                        <Button Style="{StaticResource WindowChromeButton}" Click="MinimizeClick">
+                            <TextBlock Text="&#xE921;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"/>
+                        </Button>
+                        <Button Style="{StaticResource WindowChromeButton}" Click="MaximizeClick">
+                            <TextBlock Text="&#xE922;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"/>
+                        </Button>
+                        <Button Style="{StaticResource WindowCloseButton}" Click="CloseClick">
+                            <TextBlock Text="&#xE8BB;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="10"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -83,14 +89,19 @@
                                 Margin="12,14,12,6" Padding="0,11"
                                 Command="{Binding OpenAddDialogCommand}">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="＋" FontSize="15" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Margin="0,0,7,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="New Download" FontSize="12.5" VerticalAlignment="Center" FontWeight="Bold"/>
                             </StackPanel>
                         </Button>
 
                         <!-- Bottom controls -->
                         <StackPanel DockPanel.Dock="Bottom" Margin="10,6,10,14">
-                            <Button Content="⚙  Settings" Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Stretch" Command="{Binding OpenSettingsCommand}"/>
+                            <Button Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Stretch" Command="{Binding OpenSettingsCommand}">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Settings" FontSize="13" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
 
                         <!-- Nav list -->
@@ -116,7 +127,8 @@
                                     <Grid Visibility="{Binding Converter={StaticResource NavVis}}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding Converter={StaticResource NavIcon}}"
-                                                       Width="20" FontSize="13"
+                                                       FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                       Width="20" FontSize="15"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
                                                        Margin="0,0,8,0"/>
                                             <TextBlock Text="{Binding}" FontSize="12.5" VerticalAlignment="Center"/>

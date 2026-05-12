@@ -22,9 +22,18 @@ public class SegmentDownloader : ISegmentDownloader
             int bytesRead;
             while ((bytesRead = await networkStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)) > 0)
             {
-                await destinationStream.WriteAsync(buffer, 0, bytesRead, cancellationToken);
+                long bytesRemaining = segment.EndOffset - segment.CurrentOffset + 1;
+                if (bytesRemaining <= 0) break; // Reached the end of the segment
+
+                int bytesToWrite = (int)Math.Min(bytesRead, bytesRemaining);
+                await destinationStream.WriteAsync(buffer, 0, bytesToWrite, cancellationToken);
                 
-                segment.CurrentOffset += bytesRead;
+                segment.CurrentOffset += bytesToWrite;
+
+                if (segment.CurrentOffset > segment.EndOffset)
+                {
+                    break; // Segment download complete
+                }
                 
                 if (cancellationToken.IsCancellationRequested)
                 {

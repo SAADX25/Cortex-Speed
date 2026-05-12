@@ -3,21 +3,18 @@ using CortexSpeed.Domain.Entities;
 using CortexSpeed.Domain.Enums;
 using CortexSpeed.Domain.Interfaces;
 using MediatR;
-using System.Collections.Concurrent;
 
 namespace CortexSpeed.Application.Handlers;
 
 public class StartDownloadCommandHandler : IRequestHandler<StartDownloadCommand, Guid>
 {
     private readonly IDownloadEngine _downloadEngine;
+    private readonly IDownloadJobRepository _jobRepository;
 
-    // In a full application, this would be injected as an IJobRepository
-    // Using a static ConcurrentDictionary for lightweight in-memory state tracking
-    public static readonly ConcurrentDictionary<Guid, DownloadJob> InMemoryJobStore = new();
-
-    public StartDownloadCommandHandler(IDownloadEngine downloadEngine)
+    public StartDownloadCommandHandler(IDownloadEngine downloadEngine, IDownloadJobRepository jobRepository)
     {
         _downloadEngine = downloadEngine;
+        _jobRepository = jobRepository;
     }
 
     public async Task<Guid> Handle(StartDownloadCommand request, CancellationToken cancellationToken)
@@ -38,7 +35,7 @@ public class StartDownloadCommandHandler : IRequestHandler<StartDownloadCommand,
             Category = DownloadJob.ClassifyByExtension(request.FileName)
         };
 
-        InMemoryJobStore.TryAdd(job.Id, job);
+        await _jobRepository.AddAsync(job, cancellationToken);
 
         if (!request.ScheduledAt.HasValue)
         {
@@ -46,6 +43,6 @@ public class StartDownloadCommandHandler : IRequestHandler<StartDownloadCommand,
             _ = Task.Run(() => _downloadEngine.StartDownloadAsync(job, CancellationToken.None), CancellationToken.None);
         }
 
-        return await Task.FromResult(job.Id);
+        return job.Id;
     }
 }

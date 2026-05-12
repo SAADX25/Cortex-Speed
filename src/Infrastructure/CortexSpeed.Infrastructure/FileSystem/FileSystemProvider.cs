@@ -24,16 +24,18 @@ public class FileSystemProvider : IFileSystemProvider
 
     public Task PreAllocateFileAsync(string filePath, long sizeInBytes)
     {
-        // Using FileStream synchronously inside Task.Run or just normally 
-        // to pre-allocate. SetLength is very fast on modern file systems (NTFS/ReFS).
+        // Use OpenOrCreate so we don't truncate an already existing partially downloaded file on resume.
         using var fs = new FileStream(
             filePath, 
-            FileMode.Create, 
+            FileMode.OpenOrCreate, 
             FileAccess.Write, 
             FileShare.None, 
             4096);
 
-        fs.SetLength(sizeInBytes);
+        if (fs.Length != sizeInBytes)
+        {
+            fs.SetLength(sizeInBytes);
+        }
         
         return Task.CompletedTask;
     }

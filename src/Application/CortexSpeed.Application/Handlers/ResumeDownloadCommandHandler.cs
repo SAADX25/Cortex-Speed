@@ -7,15 +7,18 @@ namespace CortexSpeed.Application.Handlers;
 public class ResumeDownloadCommandHandler : IRequestHandler<ResumeDownloadCommand, bool>
 {
     private readonly IDownloadEngine _downloadEngine;
+    private readonly IDownloadJobRepository _jobRepository;
 
-    public ResumeDownloadCommandHandler(IDownloadEngine downloadEngine)
+    public ResumeDownloadCommandHandler(IDownloadEngine downloadEngine, IDownloadJobRepository jobRepository)
     {
         _downloadEngine = downloadEngine;
+        _jobRepository = jobRepository;
     }
 
     public async Task<bool> Handle(ResumeDownloadCommand request, CancellationToken cancellationToken)
     {
-        if (StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(request.JobId, out var job))
+        var job = await _jobRepository.GetByIdAsync(request.JobId, cancellationToken);
+        if (job != null)
         {
             await _downloadEngine.ResumeDownloadAsync(request.JobId);
             return true;

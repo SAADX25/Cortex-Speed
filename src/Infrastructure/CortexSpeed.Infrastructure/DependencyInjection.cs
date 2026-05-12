@@ -2,6 +2,7 @@ using CortexSpeed.Domain.Interfaces;
 using CortexSpeed.Infrastructure.BrowserExtensions;
 using CortexSpeed.Infrastructure.FileSystem;
 using CortexSpeed.Infrastructure.Network;
+using CortexSpeed.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http;
@@ -12,6 +13,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
+        // Persistence
+        services.AddSingleton<IDownloadJobRepository, InMemoryDownloadJobRepository>();
+
         // Register the high-performance disk I/O provider
         services.AddSingleton<IFileSystemProvider, FileSystemProvider>();
 

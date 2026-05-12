@@ -10,6 +10,7 @@ public class DownloadEngine : IDownloadEngine
     private readonly IEnumerable<IProtocolHandler> _protocolHandlers;
     private readonly ISegmentDownloader _segmentDownloader;
     private readonly IFileSystemProvider _fileSystemProvider;
+    private readonly IDownloadJobRepository _jobRepository;
 
     // Track CancellationTokenSources per-job for Pause/Cancel support
     private static readonly ConcurrentDictionary<Guid, CancellationTokenSource> _jobCancellationTokens = new();
@@ -17,11 +18,13 @@ public class DownloadEngine : IDownloadEngine
     public DownloadEngine(
         IEnumerable<IProtocolHandler> protocolHandlers,
         ISegmentDownloader segmentDownloader,
-        IFileSystemProvider fileSystemProvider)
+        IFileSystemProvider fileSystemProvider,
+        IDownloadJobRepository jobRepository)
     {
         _protocolHandlers = protocolHandlers;
         _segmentDownloader = segmentDownloader;
         _fileSystemProvider = fileSystemProvider;
+        _jobRepository = jobRepository;
     }
 
     public async Task StartDownloadAsync(DownloadJob job, CancellationToken cancellationToken)
@@ -55,23 +58,26 @@ public class DownloadEngine : IDownloadEngine
             // Use configured segments or 1 if range not supported
             int segmentCount = supportsRange && fileSize > 0 ? job.MaxSegments : 1;
 
-            // 4. Divide into segments
-            long segmentSize = fileSize / segmentCount;
-            for (int i = 0; i < segmentCount; i++)
+            // 4. Divide into segments only if the job doesn't have segments yet
+            if (!job.Segments.Any())
             {
-                long startOffset = i * segmentSize;
-                // Ensure the last segment grabs any remaining bytes due to integer division rounding
-                long endOffset = (i == segmentCount - 1) ? fileSize - 1 : startOffset + segmentSize - 1;
-
-                var segment = new DownloadSegment
+                long segmentSize = fileSize / segmentCount;
+                for (int i = 0; i < segmentCount; i++)
                 {
-                    JobId = job.Id,
-                    StartOffset = startOffset,
-                    EndOffset = endOffset,
-                    CurrentOffset = startOffset,
-                    State = DownloadState.Queued
-                };
-                job.Segments.Add(segment);
+                    long startOffset = i * segmentSize;
+                    // Ensure the last segment grabs any remaining bytes due to integer division rounding
+                    long endOffset = (i == segmentCount - 1) ? fileSize - 1 : startOffset + segmentSize - 1;
+
+                    var segment = new DownloadSegment
+                    {
+                        JobId = job.Id,
+                        StartOffset = startOffset,
+                        EndOffset = endOffset,
+                        CurrentOffset = startOffset,
+                        State = DownloadState.Queued
+                    };
+                    job.Segments.Add(segment);
+                }
             }
 
             // 5. Start ISegmentDownloader tasks in parallel
@@ -79,6 +85,12 @@ public class DownloadEngine : IDownloadEngine
             
             foreach (var segment in job.Segments)
             {
+                if (segment.IsCompleted || segment.CurrentOffset > segment.EndOffset)
+                {
+                    segment.State = DownloadState.Completed;
+                    continue;
+                }
+
                 // Open a separate stream handle for each segment to allow concurrent writes
                 var stream = _fileSystemProvider.OpenFileForWrite(job.DestinationFilePath);
                 
@@ -146,11 +158,12 @@ public class DownloadEngine : IDownloadEngine
         }
     }
 
-    public Task PauseDownloadAsync(Guid jobId)
+    public async Task PauseDownloadAsync(Guid jobId)
     {
         if (_jobCancellationTokens.TryGetValue(jobId, out var cts))
         {
-            if (Handlers.StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(jobId, out var job))
+            var job = await _jobRepository.GetByIdAsync(jobId);
+            if (job != null)
             {
                 job.State = DownloadState.Paused;
                 foreach (var seg in job.Segments.Where(s => s.State == DownloadState.Downloading))
@@ -160,12 +173,12 @@ public class DownloadEngine : IDownloadEngine
             }
             cts.Cancel();
         }
-        return Task.CompletedTask;
     }
 
     public async Task ResumeDownloadAsync(Guid jobId)
     {
-        if (Handlers.StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(jobId, out var job))
+        var job = await _jobRepository.GetByIdAsync(jobId);
+        if (job != null)
         {
             if (job.State == DownloadState.Paused || job.State == DownloadState.Error)
             {
@@ -251,11 +264,12 @@ public class DownloadEngine : IDownloadEngine
         }
     }
 
-    public Task CancelDownloadAsync(Guid jobId)
+    public async Task CancelDownloadAsync(Guid jobId)
     {
         if (_jobCancellationTokens.TryGetValue(jobId, out var cts))
         {
-            if (Handlers.StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(jobId, out var job))
+            var job = await _jobRepository.GetByIdAsync(jobId);
+            if (job != null)
             {
                 job.State = DownloadState.Canceled;
                 foreach (var seg in job.Segments)
@@ -265,10 +279,13 @@ public class DownloadEngine : IDownloadEngine
             }
             cts.Cancel();
         }
-        else if (Handlers.StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(jobId, out var job))
+        else 
         {
-            job.State = DownloadState.Canceled;
+            var job = await _jobRepository.GetByIdAsync(jobId);
+            if (job != null)
+            {
+                job.State = DownloadState.Canceled;
+            }
         }
-        return Task.CompletedTask;
     }
 }

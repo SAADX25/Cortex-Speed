@@ -43,15 +43,15 @@ public class DownloadStateConverter : IValueConverter
         {
             return state switch
             {
-                DownloadState.Queued => "⏳ Queued",
-                DownloadState.Downloading => "⬇ Downloading",
-                DownloadState.Paused => "⏸ Paused",
-                DownloadState.Completed => "✅ Completed",
-                DownloadState.Error => "❌ Error",
-                DownloadState.Canceled => "🚫 Canceled",
-                DownloadState.Assembling => "🔧 Assembling",
-                DownloadState.Scheduled => "📅 Scheduled",
-                DownloadState.Waiting => "⏱ Waiting",
+                DownloadState.Queued => "Queued",
+                DownloadState.Downloading => "Downloading",
+                DownloadState.Paused => "Paused",
+                DownloadState.Completed => "Completed",
+                DownloadState.Error => "Error",
+                DownloadState.Canceled => "Canceled",
+                DownloadState.Assembling => "Assembling",
+                DownloadState.Scheduled => "Scheduled",
+                DownloadState.Waiting => "Waiting",
                 _ => state.ToString()
             };
         }
@@ -92,7 +92,7 @@ public class DownloadStateToColorConverter : IValueConverter
 }
 
 /// <summary>
-/// Converts DownloadCategory to icon character.
+/// Converts DownloadCategory to Segoe Fluent Icon hex code.
 /// </summary>
 public class CategoryToIconConverter : IValueConverter
 {
@@ -102,17 +102,17 @@ public class CategoryToIconConverter : IValueConverter
         {
             return category switch
             {
-                DownloadCategory.Videos => "🎬",
-                DownloadCategory.Music => "🎵",
-                DownloadCategory.Images => "🖼",
-                DownloadCategory.Archives => "📦",
-                DownloadCategory.Programs => "💿",
-                DownloadCategory.Documents => "📄",
-                DownloadCategory.Torrents => "🔗",
-                _ => "📁"
+                DownloadCategory.Videos => "\uE8B2",      // Video
+                DownloadCategory.Music => "\uE8D5",       // Music
+                DownloadCategory.Images => "\uE8B9",      // Pictures
+                DownloadCategory.Archives => "\uE7B8",    // Package
+                DownloadCategory.Programs => "\uE7FC",    // App
+                DownloadCategory.Documents => "\uE8E5",   // Document
+                DownloadCategory.Torrents => "\uE71B",    // Link
+                _ => "\uE838"                              // Folder
             };
         }
-        return "📁";
+        return "\uE838";
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -181,7 +181,7 @@ public class DownloadStateToBrushConverter : IValueConverter
 }
 
 /// <summary>
-/// Maps sidebar nav string to its emoji icon.
+/// Maps sidebar nav string to Segoe Fluent Icon hex code.
 /// </summary>
 public class NavItemIconConverter : IValueConverter
 {
@@ -189,17 +189,17 @@ public class NavItemIconConverter : IValueConverter
     {
         return (value as string) switch
         {
-            "All"       => "⬇",
-            "Active"    => "▶",
-            "Completed" => "✓",
-            "Scheduled" => "🕒",
-            "Errors"    => "⚠",
-            "Videos"    => "🎬",
-            "Music"     => "🎵",
-            "Documents" => "📄",
-            "Archives"  => "📦",
-            "Programs"  => "💿",
-            "Images"    => "🖼",
+            "All"       => "\uE8A9",     // Download
+            "Active"    => "\uE768",     // Play
+            "Completed" => "\uE73E",     // CheckMark
+            "Scheduled" => "\uE823",     // Clock
+            "Errors"    => "\uE7BA",     // Warning
+            "Videos"    => "\uE8B2",     // Video
+            "Music"     => "\uE8D5",     // Music
+            "Documents" => "\uE8E5",     // Document
+            "Archives"  => "\uE7B8",     // Package
+            "Programs"  => "\uE7FC",     // App
+            "Images"    => "\uE8B9",     // Pictures
             _           => ""
         };
     }

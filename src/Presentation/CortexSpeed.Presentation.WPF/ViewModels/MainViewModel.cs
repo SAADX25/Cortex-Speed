@@ -20,6 +20,7 @@ namespace CortexSpeed.Presentation.WPF.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly ISender _mediator;
+    private readonly CortexSpeed.Domain.Interfaces.IDownloadJobRepository _jobRepository;
 
     // Used to resolve real filenames from Content-Disposition headers
     private static readonly HttpClient _httpProbe = new(new HttpClientHandler
@@ -143,9 +144,10 @@ public partial class MainViewModel : ObservableObject
     private readonly Dictionary<Guid, long> _previousBytes = new();
     private DateTime _lastSpeedCheck = DateTime.UtcNow;
 
-    public MainViewModel(ISender mediator)
+    public MainViewModel(ISender mediator, CortexSpeed.Domain.Interfaces.IDownloadJobRepository jobRepository)
     {
         _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
+        _jobRepository = jobRepository ?? throw new ArgumentNullException(nameof(jobRepository));
         
         // Set default download folder
         _defaultDownloadFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "CortexSpeed");
@@ -178,7 +180,8 @@ public partial class MainViewModel : ObservableObject
         // ═══ ACTIVE DOWNLOADS: Full calculation ═══
         foreach (var item in activeDownloads)
         {
-            if (item.JobId != Guid.Empty && StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(item.JobId, out var job))
+            var job = _jobRepository.GetByIdAsync(item.JobId).Result;
+            if (item.JobId != Guid.Empty && job != null)
             {
                 // Update basic status
                 item.Status = job.State;
@@ -229,7 +232,8 @@ public partial class MainViewModel : ObservableObject
         // ═══ INACTIVE DOWNLOADS: Minimal updates ═══
         foreach (var item in inactiveDownloads)
         {
-            if (item.JobId != Guid.Empty && StartDownloadCommandHandler.InMemoryJobStore.TryGetValue(item.JobId, out var job))
+            var job = _jobRepository.GetByIdAsync(item.JobId).Result;
+            if (item.JobId != Guid.Empty && job != null)
             {
                 // Only update status and error message (cheap operation)
                 item.Status = job.State;
@@ -657,7 +661,7 @@ public partial class MainViewModel : ObservableObject
         foreach (var item in completed)
         {
             AllDownloads.Remove(item);
-            StartDownloadCommandHandler.InMemoryJobStore.TryRemove(item.JobId, out _);
+            _jobRepository.RemoveAsync(item.JobId).Wait();
         }
     }
 
