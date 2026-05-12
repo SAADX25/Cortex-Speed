@@ -87,7 +87,7 @@
                         <!-- Add Download -->
                         <Button DockPanel.Dock="Top" Style="{StaticResource PrimaryButtonStyle}"
                                 Margin="12,14,12,6" Padding="0,11"
-                                Command="{Binding OpenAddDialogCommand}">
+                                Command="{Binding AddDownload.OpenCommand}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="&#xE710;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Margin="0,0,7,0" VerticalAlignment="Center"/>
                                 <TextBlock Text="New Download" FontSize="12.5" VerticalAlignment="Center" FontWeight="Bold"/>
@@ -96,7 +96,7 @@
 
                         <!-- Bottom controls -->
                         <StackPanel DockPanel.Dock="Bottom" Margin="10,6,10,14">
-                            <Button Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Stretch" Command="{Binding OpenSettingsCommand}">
+                            <Button Style="{StaticResource GhostButtonStyle}" HorizontalAlignment="Stretch" Command="{Binding Settings.OpenCommand}">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <TextBlock Text="&#xE713;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="15" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                     <TextBlock Text="Settings" FontSize="13" VerticalAlignment="Center"/>
@@ -183,7 +183,7 @@
                         <ItemsControl ItemsSource="{Binding FilteredDownloads}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border x:Name="Card" CornerRadius="11" Margin="2,4" Padding="14,12"
+                                    <Border x:Name="Card" CornerRadius="12" Margin="2,6" Padding="20,16"
                                             Background="{StaticResource SurfaceBrush}"
                                             BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
 
@@ -194,115 +194,144 @@
                                                 <RowDefinition Height="Auto"/>
                                             </Grid.RowDefinitions>
 
-                                            <!-- Row 1: icon + name + actions + status -->
+                                            <!-- Row 1: icon + name + status + actions -->
                                             <Grid Grid.Row="0">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="38"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
 
                                                 <!-- Category icon bubble -->
-                                                <Border Grid.Column="0" Width="32" Height="32" CornerRadius="8"
-                                                        Background="{StaticResource SurfaceHighlightBrush}" VerticalAlignment="Center">
+                                                <Border Grid.Column="0" Width="40" Height="40" CornerRadius="10"
+                                                        Background="{StaticResource SurfaceHighlightBrush}" VerticalAlignment="Center" Margin="0,0,16,0">
                                                     <TextBlock Text="{Binding Category, Converter={StaticResource CategoryIcon}}"
-                                                               FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                               FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                 </Border>
 
                                                 <!-- Filename + URL -->
-                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0">
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding FileName}"
                                                                Foreground="{StaticResource TextPrimaryBrush}"
-                                                               FontSize="13" FontWeight="SemiBold"
+                                                               FontSize="15" FontWeight="SemiBold"
                                                                TextTrimming="CharacterEllipsis"/>
                                                     <TextBlock Text="{Binding Url}"
-                                                               Foreground="{StaticResource TextMutedBrush}"
-                                                               FontSize="10.5" TextTrimming="CharacterEllipsis"
-                                                               Margin="0,2,0,0"/>
+                                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                                               FontSize="11.5" TextWrapping="NoWrap"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Margin="0,3,0,0"/>
                                                 </StackPanel>
 
                                                 <!-- Status + quick actions -->
-                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <!-- Status dot + label -->
-                                                    <Border CornerRadius="12" Padding="9,4" Margin="0,0,8,0"
-                                                            Background="{StaticResource SurfaceHighlightBrush}">
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <Ellipse Width="7" Height="7" VerticalAlignment="Center"
-                                                                     Fill="{Binding Status, Converter={StaticResource StateBrush}}"
-                                                                     Margin="0,0,5,0"/>
-                                                            <TextBlock Text="{Binding Status, Converter={StaticResource StateText}}"
-                                                                       Foreground="{Binding Status, Converter={StaticResource StateColor}}"
-                                                                       FontSize="11"/>
-                                                        </StackPanel>
-                                                    </Border>
+                                                <Grid Grid.Column="2" VerticalAlignment="Center">
+                                                    <!-- Status visibility hides when actions show? No, actions and status can be side by side or actions can overlay -->
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                                        <!-- Status dot + label -->
+                                                        <Border x:Name="StatusBadge" CornerRadius="12" Padding="10,5" Margin="0,0,10,0"
+                                                                Background="{StaticResource SurfaceHighlightBrush}">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                                         Fill="{Binding Status, Converter={StaticResource StateBrush}}"
+                                                                         Margin="0,0,6,0"/>
+                                                                <TextBlock Text="{Binding Status, Converter={StaticResource StateText}}"
+                                                                           Foreground="{Binding Status, Converter={StaticResource StateColor}}"
+                                                                           FontSize="12" FontWeight="Medium"/>
+                                                            </StackPanel>
+                                                        </Border>
 
-                                                    <!-- Quick: Pause (Visible when Downloading or Queued) -->
-                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Pause"
-                                                            Visibility="{Binding Status, Converter={StaticResource IsDownloading}}"
-                                                            Command="{Binding DataContext.PauseDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}">
-                                                        <TextBlock Text="⏸" FontSize="13"/>
-                                                    </Button>
-                                                    <!-- Quick: Resume (Visible when Paused or Error) -->
-                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Resume"
-                                                            Visibility="{Binding Status, Converter={StaticResource IsPaused}}"
-                                                            Command="{Binding DataContext.ResumeDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}">
-                                                        <TextBlock Text="▶" FontSize="11"/>
-                                                    </Button>
-                                                    <!-- Quick: Open File (Visible when Completed) -->
-                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open File"
-                                                            Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
-                                                            Command="{Binding DataContext.OpenFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}">
-                                                        <TextBlock Text="📄" FontSize="13"/>
-                                                    </Button>
-                                                    <!-- Quick: Open Folder (Visible when Completed) -->
-                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open Folder"
-                                                            Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
-                                                            Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}">
-                                                        <TextBlock Text="📂" FontSize="13"/>
-                                                    </Button>
-                                                    <!-- Quick: Remove -->
-                                                    <Button Style="{StaticResource IconButtonStyle}" ToolTip="Remove"
-                                                            Command="{Binding DataContext.RemoveDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}">
-                                                        <TextBlock Text="🗑" FontSize="13"/>
-                                                    </Button>
-                                                </StackPanel>
+                                                        <!-- Quick actions panel -->
+                                                        <StackPanel x:Name="ActionPanel" Orientation="Horizontal" Opacity="0">
+                                                            <!-- Quick: Pause -->
+                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Pause" Margin="0,0,4,0"
+                                                                    Visibility="{Binding Status, Converter={StaticResource IsDownloading}}"
+                                                                    Command="{Binding DataContext.PauseDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <TextBlock Text="⏸" FontSize="14"/>
+                                                            </Button>
+                                                            <!-- Quick: Resume -->
+                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Resume" Margin="0,0,4,0"
+                                                                    Visibility="{Binding Status, Converter={StaticResource IsPaused}}"
+                                                                    Command="{Binding DataContext.ResumeDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <TextBlock Text="▶" FontSize="12"/>
+                                                            </Button>
+                                                            <!-- Quick: Open File -->
+                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open File" Margin="0,0,4,0"
+                                                                    Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
+                                                                    Command="{Binding DataContext.OpenFileCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <TextBlock Text="📄" FontSize="14"/>
+                                                            </Button>
+                                                            <!-- Quick: Open Folder -->
+                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Open Folder" Margin="0,0,4,0"
+                                                                    Visibility="{Binding Status, Converter={StaticResource IsCompleted}}"
+                                                                    Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <TextBlock Text="📂" FontSize="14"/>
+                                                            </Button>
+                                                            <!-- Quick: Remove -->
+                                                            <Button Style="{StaticResource IconButtonStyle}" ToolTip="Remove"
+                                                                    Command="{Binding DataContext.RemoveDownloadCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}">
+                                                                <TextBlock Text="🗑" FontSize="14"/>
+                                                            </Button>
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </Grid>
                                             </Grid>
 
                                             <!-- Progress bar -->
                                             <ProgressBar Grid.Row="1" Value="{Binding ProgressPercentage}"
                                                          Style="{StaticResource ModernProgressBarStyle}"
-                                                         Maximum="100" Margin="0,10,0,10"/>
+                                                         Height="3" Maximum="100" Margin="0,16,0,16"/>
 
                                             <!-- Row 3: size / speed / ETA / progress % -->
                                             <Grid Grid.Row="2">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="Auto" MinWidth="50"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="Auto" MinWidth="70"/>
-                                                    <ColumnDefinition Width="Auto" MinWidth="60"/>
-                                                    <ColumnDefinition Width="Auto" MinWidth="50"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
+                                                
                                                 <TextBlock Grid.Column="0" Text="{Binding TotalSizeFormatted}"
-                                                           Foreground="{StaticResource TextSecondaryBrush}" FontSize="11" Margin="0,0,16,0"/>
-                                                <TextBlock Grid.Column="2" Text="{Binding Speed}"
-                                                           Foreground="{StaticResource AccentBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,0,16,0"/>
+                                                           Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Speed}"
+                                                           Foreground="{StaticResource AccentBrush}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                
                                                 <TextBlock Grid.Column="3" Text="{Binding Eta}"
-                                                           Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,0,16,0"/>
+                                                           Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="0,0,20,0" VerticalAlignment="Center"/>
                                                 <TextBlock Grid.Column="4" Text="{Binding ProgressText}"
-                                                           Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextAlignment="Right"/>
+                                                           Foreground="{StaticResource TextPrimaryBrush}" FontSize="12" FontWeight="Bold" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                             </Grid>
                                         </Grid>
                                     </Border>
                                     <DataTemplate.Triggers>
+                                        <!-- Hover state for Card -->
                                         <Trigger SourceName="Card" Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Card" Property="Background"    Value="{StaticResource SurfaceHighlightBrush}"/>
-                                            <Setter TargetName="Card" Property="BorderBrush"   Value="{StaticResource BorderMediumBrush}"/>
+                                            <Setter TargetName="Card" Property="Background" Value="{StaticResource SurfaceHoverBrush}"/>
+                                            <Setter TargetName="Card" Property="BorderBrush" Value="{StaticResource BorderMediumBrush}"/>
                                         </Trigger>
+                                        <!-- Animate Action Panel to appear -->
+                                        <EventTrigger RoutedEvent="MouseEnter" SourceName="Card">
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="ActionPanel"
+                                                                     Storyboard.TargetProperty="Opacity"
+                                                                     To="1" Duration="0:0:0.15"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger>
+                                        <EventTrigger RoutedEvent="MouseLeave" SourceName="Card">
+                                            <BeginStoryboard>
+                                                <Storyboard>
+                                                    <DoubleAnimation Storyboard.TargetName="ActionPanel"
+                                                                     Storyboard.TargetProperty="Opacity"
+                                                                     To="0" Duration="0:0:0.15"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </EventTrigger>
                                     </DataTemplate.Triggers>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -345,7 +374,7 @@
 
             <!-- ═══ ADD DOWNLOAD DIALOG ═══ -->
             <Border x:Name="AddDialogBackground" Grid.Row="0" Grid.RowSpan="3" CornerRadius="12"
-                    Visibility="{Binding IsAddDialogOpen, Converter={StaticResource BoolVis}}"
+                    Visibility="{Binding AddDownload.IsOpen, Converter={StaticResource BoolVis}}"
                     MouseLeftButtonDown="CloseDialogOnBackgroundClick">
                 <Border.Background><SolidColorBrush Color="#000000" Opacity="0.72"/></Border.Background>
                 <Border Background="{StaticResource SurfaceBrush}" CornerRadius="14"
@@ -360,22 +389,22 @@
                                 <TextBlock Text="New Download" Foreground="{StaticResource TextPrimaryBrush}" FontSize="17" FontWeight="SemiBold"/>
                                 <TextBlock Text="Configure and start your download" Foreground="{StaticResource TextMutedBrush}" FontSize="11.5" Margin="0,3,0,0"/>
                             </StackPanel>
-                            <Button Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Top" Command="{Binding CloseAddDialogCommand}">
+                            <Button Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Top" Command="{Binding AddDownload.CloseCommand}">
                                 <TextBlock Text="✕" FontSize="13" Foreground="{StaticResource TextMutedBrush}"/>
                             </Button>
                         </Grid>
 
                         <TextBlock Text="URL" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10.5" Margin="0,0,0,5" FontWeight="SemiBold"/>
-                        <TextBox Text="{Binding DialogUrl, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBoxStyle}" Tag="https://example.com/file.zip" Margin="0,0,0,14"/>
+                        <TextBox Text="{Binding AddDownload.Url, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBoxStyle}" Tag="https://example.com/file.zip" Margin="0,0,0,14"/>
 
                         <TextBlock Text="FILE NAME" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10.5" Margin="0,0,0,5" FontWeight="SemiBold"/>
-                        <TextBox Text="{Binding DialogFileName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBoxStyle}" Tag="Auto-detected from URL" Margin="0,0,0,14"/>
+                        <TextBox Text="{Binding AddDownload.FileName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBoxStyle}" Tag="Auto-detected from URL" Margin="0,0,0,14"/>
 
                         <TextBlock Text="SAVE TO" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10.5" Margin="0,0,0,5" FontWeight="SemiBold"/>
                         <Grid Margin="0,0,0,16">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBox Grid.Column="0" Text="{Binding DialogSavePath, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBoxStyle}" Tag="Download folder" Margin="0,0,8,0"/>
-                            <Button Grid.Column="1" Style="{StaticResource GhostButtonStyle}" Command="{Binding SelectSaveFolderCommand}" Padding="11,9" ToolTip="Browse folder">
+                            <TextBox Grid.Column="0" Text="{Binding AddDownload.SavePath, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBoxStyle}" Tag="Download folder" Margin="0,0,8,0"/>
+                            <Button Grid.Column="1" Style="{StaticResource GhostButtonStyle}" Command="{Binding AddDownload.SelectSaveFolderCommand}" Padding="11,9" ToolTip="Browse folder">
                                 <TextBlock Text="📂" FontSize="15"/>
                             </Button>
                         </Grid>
@@ -384,12 +413,12 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="SEGMENTS" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10.5" Margin="0,0,0,5" FontWeight="SemiBold"/>
-                                <TextBox Text="{Binding DialogSegmentCount, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBoxStyle}" Tag="16"/>
+                                <TextBox Text="{Binding AddDownload.SegmentCount, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ModernTextBoxStyle}" Tag="16"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="SCHEDULE" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10.5" Margin="0,0,0,5" FontWeight="SemiBold"/>
                                 <Border Background="{StaticResource SurfaceHighlightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="12,10">
-                                    <CheckBox Content="Schedule later" IsChecked="{Binding DialogScheduleEnabled}" Style="{StaticResource ModernCheckBoxStyle}" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                    <CheckBox Content="Schedule later" IsChecked="{Binding AddDownload.ScheduleEnabled}" Style="{StaticResource ModernCheckBoxStyle}" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </Border>
                             </StackPanel>
                         </Grid>
@@ -398,8 +427,8 @@
 
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Content="Cancel" Style="{StaticResource GhostButtonStyle}" Command="{Binding CloseAddDialogCommand}" Padding="18,10" HorizontalAlignment="Left"/>
-                            <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding ConfirmAddDownloadCommand}" Padding="24,11">
+                            <Button Grid.Column="0" Content="Cancel" Style="{StaticResource GhostButtonStyle}" Command="{Binding AddDownload.CloseCommand}" Padding="18,10" HorizontalAlignment="Left"/>
+                            <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" Command="{Binding AddDownload.ConfirmAddDownloadCommand}" Padding="24,11">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="⬇" Margin="0,0,7,0"/>
                                     <TextBlock Text="Start Download" FontWeight="Bold"/>
@@ -412,7 +441,7 @@
 
             <!-- ═══ SETTINGS PANEL ═══ -->
             <Border Grid.Row="0" Grid.RowSpan="3" CornerRadius="12"
-                    Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolVis}}"
+                    Visibility="{Binding Settings.IsOpen, Converter={StaticResource BoolVis}}"
                     MouseLeftButtonDown="CloseSettingsOnBackgroundClick">
                 <Border.Background><SolidColorBrush Color="#000000" Opacity="0.72"/></Border.Background>
                 <Border Background="{StaticResource SurfaceBrush}" CornerRadius="14"
@@ -427,7 +456,7 @@
                                 <TextBlock Text="Settings" Foreground="{StaticResource TextPrimaryBrush}" FontSize="17" FontWeight="SemiBold"/>
                                 <TextBlock Text="Customize Cortex Speed" Foreground="{StaticResource TextMutedBrush}" FontSize="11.5" Margin="0,3,0,0"/>
                             </StackPanel>
-                            <Button Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Top" Command="{Binding CloseSettingsCommand}">
+                            <Button Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Right" VerticalAlignment="Top" Command="{Binding Settings.CloseCommand}">
                                 <TextBlock Text="✕" FontSize="13" Foreground="{StaticResource TextMutedBrush}"/>
                             </Button>
                         </Grid>
@@ -438,7 +467,7 @@
 
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Content="Cancel" Style="{StaticResource GhostButtonStyle}" Command="{Binding CloseSettingsCommand}" Padding="18,10" HorizontalAlignment="Left"/>
+                            <Button Grid.Column="0" Content="Cancel" Style="{StaticResource GhostButtonStyle}" Command="{Binding Settings.CloseCommand}" Padding="18,10" HorizontalAlignment="Left"/>
                         </Grid>
                     </StackPanel>
                 </Border>

@@ -311,25 +311,34 @@
     <!-- PROGRESS BAR — animated gradient           -->
     <!-- ═══════════════════════════════════════════ -->
     <Style TargetType="ProgressBar" x:Key="ModernProgressBarStyle">
-        <Setter Property="Background"      Value="#1A1E26"/>
+        <Setter Property="Foreground">
+            <Setter.Value>
+                <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                    <GradientStop Color="#00F2FE" Offset="0.0" />
+                    <GradientStop Color="#4FACFE" Offset="1.0" />
+                </LinearGradientBrush>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Background"      Value="#191E28"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="Height"          Value="5"/>
+        <Setter Property="Height"          Value="3"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ProgressBar">
-                    <Border Background="{TemplateBinding Background}" CornerRadius="3">
-                        <Border x:Name="PART_Track" CornerRadius="3">
-                            <Border x:Name="PART_Indicator" CornerRadius="3" HorizontalAlignment="Left">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                        <GradientStop Color="#00E5C4" Offset="0"/>
-                                        <GradientStop Color="#00CFFF" Offset="0.5"/>
-                                        <GradientStop Color="#7C5CE7" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                            </Border>
+                    <Grid VerticalAlignment="Center">
+                        <!-- Dark background track -->
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="1.5"/>
+                                
+                        <!-- Progress Track -->
+                        <Border x:Name="PART_Track" CornerRadius="1.5">
+                            <!-- The actual Progress Indicator -->
+                            <Border x:Name="PART_Indicator" 
+                                    CornerRadius="1.5" 
+                                    HorizontalAlignment="Left"
+                                    Background="{TemplateBinding Foreground}"/>
                         </Border>
-                    </Border>
+                    </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

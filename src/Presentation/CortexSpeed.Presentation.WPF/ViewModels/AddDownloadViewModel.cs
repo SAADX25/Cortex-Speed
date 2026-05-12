@@ -103,7 +103,7 @@ public partial class AddDownloadViewModel : ObservableObject
         var targetFileName = FileName;
         if (string.IsNullOrWhiteSpace(targetFileName))
         {
-            targetFileName = _mainViewModel.ExtractFileName(targetUrl);
+            targetFileName = MainViewModel.ExtractFileName(targetUrl);
         }
 
         var destFolder = string.IsNullOrWhiteSpace(SavePath) ? _settingsViewModel.DefaultDownloadFolder : SavePath;

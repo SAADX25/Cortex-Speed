@@ -8,7 +8,7 @@ public class InMemoryDownloadJobRepository : IDownloadJobRepository
 {
     private readonly ConcurrentDictionary<Guid, DownloadJob> _store = new();
 
-    public Task<DownloadJob> GetByIdAsync(Guid jobId, CancellationToken cancellationToken = default)
+    public Task<DownloadJob?> GetByIdAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         _store.TryGetValue(jobId, out var job);
         return Task.FromResult(job); // will return null if not found

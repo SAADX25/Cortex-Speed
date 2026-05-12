@@ -32,9 +32,9 @@ public partial class MainWindow : Window
     /// </summary>
     private void CloseDialogOnBackgroundClick(object sender, MouseButtonEventArgs e)
     {
-        if (DataContext is MainViewModel viewModel && viewModel.CloseAddDialogCommand.CanExecute(null))
+        if (DataContext is MainViewModel viewModel && viewModel.AddDownload.CloseCommand.CanExecute(null))
         {
-            viewModel.CloseAddDialogCommand.Execute(null);
+            viewModel.AddDownload.CloseCommand.Execute(null);
         }
     }
 
@@ -51,9 +51,9 @@ public partial class MainWindow : Window
     /// </summary>
     private void CloseSettingsOnBackgroundClick(object sender, MouseButtonEventArgs e)
     {
-        if (DataContext is MainViewModel viewModel && viewModel.CloseSettingsCommand.CanExecute(null))
+        if (DataContext is MainViewModel viewModel && viewModel.Settings.CloseCommand.CanExecute(null))
         {
-            viewModel.CloseSettingsCommand.Execute(null);
+            viewModel.Settings.CloseCommand.Execute(null);
         }
     }
 

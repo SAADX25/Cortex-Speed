@@ -270,7 +270,6 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task QuickDownloadAsync()
     {
-    {
         if (string.IsNullOrWhiteSpace(UrlInput)) return;
 
         var url = UrlInput.Trim();
